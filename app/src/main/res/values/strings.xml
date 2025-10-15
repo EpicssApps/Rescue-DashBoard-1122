@@ -1,0 +1,167 @@
+<resources>
+    <string name="app_name">Vehicle DashBoard</string>
+    <string name="bna_02">BNA 2</string>
+    <string name="bna_04">BNA 4</string>
+    <string name="bna1">BNA 26</string>
+    <string name="bna2">BNA 29</string>
+    <string name="bna3">BNA 08</string>
+    <string name="bna4">BNA 17</string>
+    <string name="internet_error_title">No Internet Connection</string>
+    <string name="internet_error_message">Make sure Wi-Fi or mobile data\nis turned on, then try again</string>
+    <string name="operational">Operational\n Vehicles</string>
+    <string name="operational_vehicles">Operational Vehicles</string>
+    <string name="pts">PTS</string>
+    <string name="bna8">BNA 08</string>
+    <string name="bna9">BNA 09</string>
+    <string name="bna21">BNA 21</string>
+    <string name="bna22">BNA 22</string>
+    <string name="motorBike">MotorBike</string>
+    <string name="BNB01">BNB 1</string>
+    <string name="BNB02">BNB 2</string>
+    <string name="BNB03">BNB 3</string>
+    <string name="BNB04">BNB 4</string>
+    <string name="BNB05">BNB 5</string>
+    <string name="BNB06">BNB 6</string>
+    <string name="BNB07">BNB 7</string>
+    <string name="BNB08">BNB 8</string>
+    <string name="BNB09">BNB 9</string>
+    <string name="BNB10">BNB 10</string>
+    <string name="BNB11">BNB 11</string>
+    <string name="BNB12">BNB 12</string>
+    <string name="BNB13">BNB 13</string>
+    <string name="BNB14">BNB 14</string>
+    <string name="BNB15">BNB 15</string>
+    <string name="BNB16">BNB 16</string>
+    <string name="BNB17">BNB 17</string>
+    <string name="BNB18">BNB 18</string>
+    <string name="BNB19">BNB 19</string>
+    <string name="BNB20">BNB 20</string>
+    <string name="BNB21">BNB 21</string>
+    <string name="BNB22">BNB 22</string>
+    <string name="BNB23">BNB 23</string>
+    <string name="BNB24">BNB 24</string>
+    <string name="BNB25">BNB 25</string>
+    <string name="BNB26">BNB 26</string>
+    <string name="BNB27">BNB 27</string>
+    <string name="BNB28">BNB 28</string>
+    <string name="BNB29">BNB 29</string>
+    <string name="BNB30">BNB 30</string>
+    <string name="BNB31">BNB 31</string>
+    <string name="BNB32">BNB 32</string>
+    <string name="BNB33">BNB 33</string>
+    <string name="BNB34">BNB 34</string>
+    <string name="BNB35">BNB 35</string>
+    <string name="BNB36">BNB 36</string>
+    <string name="BNB37">BNB 37</string>
+    <string name="BNB38">BNB 38</string>
+    <string name="BNB39">BNB 39</string>
+    <string name="BNB40">BNB 40</string>
+    <string name="BNB41">BNB 41</string>
+    <string name="BNB42">BNB 42</string>
+    <string name="BNB43">BNB 43</string>
+    <string name="BNB44">BNB 44</string>
+    <string name="BNB45">BNB 45</string>
+    <string name="BNB46">BNB 46</string>
+    <string name="BNB47">BNB 47</string>
+    <string name="BNB48">BNB 48</string>
+    <string name="BNB49">BNB 49</string>
+    <string name="BNB50">BNB 50</string>
+    <!-- Preference Titles -->
+    <string name="messages_header">Messages</string>
+    <string name="sync_header">Sync</string>
+
+    <!-- Messages Preferences -->
+    <string name="signature_title">Your signature</string>
+    <string name="reply_title">Default reply action</string>
+
+    <!-- Sync Preferences -->
+    <string name="sync_title">Sync email periodically</string>
+    <string name="attachment_title">Download incoming attachments</string>
+    <string name="attachment_summary_on">Automatically download attachments for incoming emails
+    </string>
+    <string name="attachment_summary_off">Only download attachments when manually requested</string>
+    <string name="setPassword">PASSWORD</string>
+    <string name="userName">USERNAME</string>
+    <string name="rescueDashBoard">Save Username and password for Login</string>
+    <string name="share">Share</string>
+    <string name="rate_us">Rate us</string>
+    <string name="About">About</string>
+    <string name="moreApps">More Apps</string>
+    <string name="aboutUS">Version App 10.1.11\nEmail ID:\nDigitalFingerApps.pk@gmail.com</string>
+    <string name="settings">Settings</string>
+    <string name="vehicles">Vehicles</string>
+    <string name="vehiclesDiagnos">Vehicles\n Diagnoses</string>
+    <string name="Employees">Employees\n Field Staff</string>
+    <string name="Reports">Emergency\n Reports</string>
+    <string name="DashBoard">DashBoard</string>
+    <string name="ptsVehicles">PTS\n Vehicles</string>
+    <string name="drivers">Drivers</string>
+    <string name="responders">EMT &amp; FR\n DR &amp; LFR</string>
+    <string name="motorBikeEmt">Motor Bike\n EMT</string>
+    <string name="locationBaseReport">Location Base\n Reports</string>
+    <string name="EmployeesBaseReports">Employees Base\n Reports</string>
+    <string name="bnf1">BNF 01</string>
+    <string name="bfn3">BNF 03</string>
+    <string name="bnr1">BNR 1</string>
+    <string name="bng11">BNG 1</string>
+    <string name="bna7">BNA 07</string>
+    <string name="vehiclesStatus">Vehicle\n Status</string>
+    <string name="allVehicleStatus">All Vehicle Status</string>
+    <string name="idle">On Idle</string>
+    <string name="Maintenance">On Maintenance</string>
+    <string name="OnEmergency">On Emergency</string>
+    <string name="OnProtocol">On Protocol</string>
+    <string name="check_vehicle_status">Check Vehicle Status</string>
+    <string name="companyName">Digital Finger Apps</string>
+    <string name="nav_header_desc">"Rescue 1122 "</string>
+    <string name="nav_header_title">Rescue 1122</string>
+    <string name="nav_header_subtitle">Rescue 1122 Vehicles DashBoard</string>
+    <string name="privacyPolicy">Privacy Policy</string>
+    <string name="checkUpdate">Check Update</string>
+    <string name="vehicle_dashboard">Vehicles Dashboard</string>
+    <string name="vehicle">Vehicles</string>
+    <string name="Attendance">Attendance</string>
+    <string name="Report">Reports</string>
+    <string name="MainDashBoard">DashBoard</string>
+    <string name="onetime"><![CDATA[Save Username & Password]]></string>
+    <string name="Save">Save</string>
+    <string name="Cancel">Cancel</string>
+    <string name="reset">Reset</string>
+    <string name="resetTitle">Do you want to Reset UserName and Password?</string>
+    <string name="location">Save Your Location</string>
+    <string name="DropDownTitle">Set Location</string>
+    <string name="bnf5">BNF-05</string>
+    <string name="BNA16">BNA-16</string>
+    <string name="BNA2">BNA-02</string>
+    <string name="BNA15">BNA-15</string>
+    <string name="BNA18">BNA-18</string>
+    <string name="BNA28">BNA-28</string>
+    <string name="bnf2">BNF-02</string>
+    <string name="BNA8">BNA-08</string>
+    <string name="BNA13">BNA-13</string>
+    <string name="BNA14">BNA-14</string>
+    <string name="BNA12">BNA-12</string>
+    <string name="BNA27">BNA-27</string>
+    <string name="bnf6">BNF-06</string>
+    <string name="BNA6">BNA-06</string>
+    <string name="BNA19">BNA-19</string>
+    <string name="BNA20">BNA-20</string>
+    <string name="BNA32">BNA-32</string>
+    <string name="BNA4">BNA-04</string>
+    <string name="BNA23">BNA-23</string>
+    <string name="BNA24">BNA-24</string>
+    <string name="BNA31">BNA-31</string>
+    <string name="bnf4">BNF-04</string>
+    <string name="bna10">BNA-10</string>
+    <string name="bna11">BNA-11</string>
+    <string name="bna25">BNA 25</string>
+
+    <string-array name="locationItems">
+        <item>RS-01 Bahawalnagar</item>
+        <item>RS-02 Chistian</item>
+        <item>RS-03 Haroonabad</item>
+        <item>RS-04 Minchanabad</item>
+        <item>RS-05 FortAbbas</item>
+    </string-array>
+
+</resources>

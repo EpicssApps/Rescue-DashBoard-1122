@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:tool="http://schemas.android.com/tools"
+    android:background="@drawable/background"
+    tool:context=".CheckVehicleStatus">
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/allVehicleStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/allVehicleStatus"
+            android:textColor="@color/white"
+            android:padding="8dp"
+            android:textSize="20sp"
+            android:gravity="center"
+            android:background="@drawable/shape"
+            android:clickable="true"
+            android:elevation="10dp"
+            android:focusable="true"
+            android:textAllCaps="false"
+            android:layout_marginStart="50dp"
+            android:layout_marginEnd="50dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/idle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="50dp"
+            android:layout_marginEnd="50dp"
+            android:background="@drawable/shape"
+            android:clickable="true"
+            android:elevation="10dp"
+            android:focusable="true"
+            android:textSize="20sp"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:text="@string/idle"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="@+id/allVehicleStatus"
+            app:layout_constraintHorizontal_bias="0.0"
+            app:layout_constraintStart_toStartOf="@+id/allVehicleStatus"
+            app:layout_constraintTop_toBottomOf="@+id/allVehicleStatus" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/Maintenance"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="50dp"
+            android:layout_marginEnd="50dp"
+            android:background="@drawable/shape"
+            android:clickable="true"
+            android:elevation="10dp"
+            android:focusable="true"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:text="@string/Maintenance"
+            android:textSize="20sp"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="@+id/idle"
+            app:layout_constraintStart_toStartOf="@+id/idle"
+            app:layout_constraintTop_toBottomOf="@+id/idle" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/OnEmergency"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="50dp"
+            android:layout_marginEnd="50dp"
+            android:background="@drawable/shape"
+            android:clickable="true"
+            android:elevation="10dp"
+            android:focusable="true"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:text="@string/OnEmergency"
+            android:textSize="20sp"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="@+id/Maintenance"
+            app:layout_constraintStart_toStartOf="@+id/Maintenance"
+            app:layout_constraintTop_toBottomOf="@+id/Maintenance" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/OnProtocol"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginStart="50dp"
+            android:layout_marginEnd="50dp"
+            android:background="@drawable/shape"
+            android:clickable="true"
+            android:elevation="10dp"
+            android:focusable="true"
+            android:gravity="center"
+            android:textColor="@color/white"
+            android:text="@string/OnProtocol"
+            android:textSize="20sp"
+            android:textAllCaps="false"
+            app:layout_constraintEnd_toEndOf="@+id/OnEmergency"
+            app:layout_constraintStart_toStartOf="@+id/OnEmergency"
+            app:layout_constraintTop_toBottomOf="@+id/OnEmergency" />
+
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+
+
+
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+
+
+    <item android:id="@+id/MainDashBoard"
+        android:title="@string/MainDashBoard"
+        android:icon="@drawable/categories"/>
+
+    <item android:id="@+id/vehicles3"
+        android:title="@string/vehicle"
+        android:icon="@drawable/ic_car"/>
+
+    <item android:id="@+id/selectEmployees"
+        android:title="@string/Attendance"
+        android:icon="@drawable/memployee"/>
+
+    <item android:id="@+id/showEmergencyReports"
+        android:title="@string/Report"
+        android:icon="@drawable/reprots"/>
+
+</menu>

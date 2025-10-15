@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/MainDashBoard">
+
+    <fragment
+        android:id="@+id/showWebView"
+        android:name="com.epicx.apps.rescue1122dashboard.ShowWebView"
+        android:label="1122 DashBoard"
+        tools:layout="@layout/show_web_view">
+        <argument
+            android:name="url"
+            app:argType="string"
+            app:nullable="true" />
+    </fragment>
+    <dialog
+        android:id="@+id/ptsVehicles"
+        android:name="com.epicx.apps.rescue1122dashboard.PtsVehicles"
+        android:label="pts_layout"
+        tools:layout="@layout/pts_layout" >
+        <action
+            android:id="@+id/action_ptsVehicles_to_showWebView"
+            app:destination="@id/showWebView"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right" />
+    </dialog>
+    <dialog
+        android:id="@+id/MotorBike"
+        android:name="com.epicx.apps.rescue1122dashboard.MotorBikes"
+        android:label="motor_bikes"
+        tools:layout="@layout/motor_bikes" >
+        <action
+            android:id="@+id/action_MotorBike_to_showWebView"
+            app:destination="@id/showWebView"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right"/>
+    </dialog>
+    <fragment
+        android:id="@+id/MainDashBoard"
+        android:name="com.epicx.apps.rescue1122dashboard.MainDashBoard"
+        android:label="@string/DashBoard"
+        tools:layout="@layout/main_dashboard" >
+        <action
+            android:id="@+id/action_MainDashBoard_to_saveUserNamePassword"
+            app:destination="@id/saveUserNamePassword" />
+    </fragment>
+    <fragment
+        android:id="@+id/selectVehiclesType"
+        android:name="com.epicx.apps.rescue1122dashboard.SelectVehiclesType"
+        android:label="@string/vehicle"
+        tools:layout="@layout/select_type_vehicles">
+        <action
+            android:id="@+id/action_selectVehiclesType_to_showOperationDialog"
+            app:destination="@id/showOperationDialog" />
+        <action
+            android:id="@+id/action_selectVehiclesType_to_ptsVehicles"
+            app:destination="@id/ptsVehicles" />
+        <action
+            android:id="@+id/action_selectVehiclesType_to_MotorBike"
+            app:destination="@id/MotorBike" />
+        <action
+            android:id="@+id/action_selectVehiclesType_to_showWebView"
+            app:destination="@id/showWebView" />
+    </fragment>
+    <fragment
+        android:id="@+id/selectEmployees"
+        android:name="com.epicx.apps.rescue1122dashboard.SelectEmployees"
+        android:label="Select Employees"
+        tools:layout="@layout/select_employees" >
+        <action
+            android:id="@+id/action_selectEmployees_to_showWebView"
+            app:destination="@id/showWebView"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right"/>
+    </fragment>
+    <dialog
+        android:id="@+id/showOperationDialog"
+        android:name="com.epicx.apps.rescue1122dashboard.ShowOperationDialog"
+        android:label="show_operation_dialog"
+        tools:layout="@layout/show_operation_dialog" >
+        <action
+            android:id="@+id/action_showOperationDialog_to_showWebView"
+            app:destination="@id/showWebView"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right"/>
+    </dialog>
+    <fragment
+        android:id="@+id/checkVehicleStatus"
+        android:name="com.epicx.apps.rescue1122dashboard.CheckVehicleStatus"
+        android:label="check_vehicle_status"
+        tools:layout="@layout/check_vehicle_status" >
+        <action
+            android:id="@+id/action_checkVehicleStatus_to_showWebView"
+            app:destination="@id/showWebView"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right"/>
+    </fragment>
+    <fragment
+        android:id="@+id/showEmergencyReports"
+        android:name="com.epicx.apps.rescue1122dashboard.ShowEmergencyReports"
+        android:label="show_reports"
+        tools:layout="@layout/show_reports" />
+    <fragment
+        android:id="@+id/vehicles3"
+        android:name="com.epicx.apps.rescue1122dashboard.Vehicles"
+        android:label="@string/vehicle"
+        tools:layout="@layout/vehicles_layout">
+        <action
+            android:id="@+id/action_vehicles3_to_selectVehiclesType"
+            app:destination="@id/selectVehiclesType"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right" />
+        <action
+            android:id="@+id/action_vehicles3_to_checkVehicleStatus"
+            app:destination="@id/checkVehicleStatus"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right" />
+        <action
+            android:id="@+id/action_vehicles3_to_showWebView"
+            app:destination="@id/showWebView"
+            app:enterAnim="@anim/slid_in_right"
+            app:exitAnim="@anim/slid_out_left"
+            app:popEnterAnim="@anim/slid_in_left"
+            app:popExitAnim="@anim/slid_out_right" />
+    </fragment>
+    <dialog
+        android:id="@+id/saveUserNamePassword"
+        android:name="com.epicx.apps.rescue1122dashboard.SaveUserNamePassword"
+        android:label="save_username_password"
+        tools:layout="@layout/save_username_password" >
+    </dialog>
+</navigation>
