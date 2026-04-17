@@ -23,27 +23,23 @@ class PtsVehicles : DialogFragment() {
 
         with(binding!!){
             bna7.setOnClickListener {
-                val direction = com.epicx.apps.rescue1122dashboard.PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1338/edit")
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1338/edit")
                 findNavController().navigate(direction)
             }
-            bna9.setOnClickListener {
-                val direction = com.epicx.apps.rescue1122dashboard.PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1310/edit")
+            bna08.setOnClickListener {
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1570/edit")
                 findNavController().navigate(direction)
             }
             bna11.setOnClickListener {
-                val direction = com.epicx.apps.rescue1122dashboard.PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1202/edit")
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1202/edit")
                 findNavController().navigate(direction)
             }
-            bna10.setOnClickListener {
-                val direction = com.epicx.apps.rescue1122dashboard.PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1324/edit")
-                findNavController().navigate(direction)
-            }
-            bna21.setOnClickListener {
-                val direction = com.epicx.apps.rescue1122dashboard.PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1311/edit")
+            bna13.setOnClickListener {
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/6221/edit")
                 findNavController().navigate(direction)
             }
             bna22.setOnClickListener {
-                val direction = com.epicx.apps.rescue1122dashboard.PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1301/edit")
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1301/edit")
                 findNavController().navigate(direction)
             }
 
