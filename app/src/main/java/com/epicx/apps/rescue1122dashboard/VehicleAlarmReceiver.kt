@@ -18,7 +18,7 @@ import androidx.core.app.NotificationCompat
 class VehicleAlarmReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "VehicleTimerDebug"
-        private const val ALARM_CHANNEL_ID = "vehicle_alarm_channel_sound"
+        private const val ALARM_CHANNEL_ID = "vehicle_alarm_channel_sound_v2"
         private var mediaPlayer: MediaPlayer? = null
 
         fun stopAlarmSound() {
@@ -35,7 +35,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == "STOP_ALARM_ACTION") {
+        if (intent.action?.startsWith("STOP_ALARM_ACTION") == true) {
             Log.d(TAG, "Notification dismissed by user. Stopping alarm ringtone.")
             stopAlarmSound()
             return
@@ -77,7 +77,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
 
         // Stop Alarm intent when user dismisses/swipes away notification
         val stopIntent = Intent(context, VehicleAlarmReceiver::class.java).apply {
-            action = "STOP_ALARM_ACTION"
+            action = "STOP_ALARM_ACTION_${vehicleName.hashCode()}"
         }
         val stopPendingIntent = PendingIntent.getBroadcast(context, notificationId + 2000, stopIntent, pendingFlags)
 

@@ -21,7 +21,7 @@ class VehicleTimerService : Service() {
     companion object {
         private const val TAG = "VehicleTimerDebug"
         private const val TIMER_CHANNEL_ID = "vehicle_timer_channel_silent"
-        private const val ALARM_CHANNEL_ID = "vehicle_alarm_channel_sound"
+        private const val ALARM_CHANNEL_ID = "vehicle_alarm_channel_sound_v2"
 
         fun startTimer(context: Context, vehicleName: String, reason: String, minutes: Int) {
             val intent = Intent(context, VehicleTimerService::class.java).apply {
@@ -103,6 +103,7 @@ class VehicleTimerService : Service() {
         // 2. Schedule exact AlarmManager wakeup at endRealtime for time-up alarm
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val alarmIntent = Intent(this, VehicleAlarmReceiver::class.java).apply {
+            action = "COM.EPICX.RESCUE.ALARM_${vehicleName.hashCode()}"
             putExtra("vehicleName", vehicleName)
             putExtra("reason", reason)
         }
@@ -136,7 +137,9 @@ class VehicleTimerService : Service() {
 
         val notificationId = vehicleName.hashCode()
         val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val alarmIntent = Intent(this, VehicleAlarmReceiver::class.java)
+        val alarmIntent = Intent(this, VehicleAlarmReceiver::class.java).apply {
+            action = "COM.EPICX.RESCUE.ALARM_${vehicleName.hashCode()}"
+        }
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = PendingIntent.getBroadcast(this, notificationId, alarmIntent, pendingFlags)
         try {

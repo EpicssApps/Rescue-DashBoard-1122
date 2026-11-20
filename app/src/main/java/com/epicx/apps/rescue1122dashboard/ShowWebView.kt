@@ -273,9 +273,9 @@ class ShowWebView : Fragment(R.layout.show_web_view){
                                 var typeSel = document.getElementById('maintenanceType');
                                 var reasonSel = document.getElementById('reason_maintenance_id');
                                 
-                                var regNo = document.getElementById('registration_no') ? document.getElementById('registration_no').value : 'Vehicle';
-                                var licenseNo = document.getElementById('license_no') ? document.getElementById('license_no').value : '';
-                                var vehicleName = regNo + (licenseNo ? ' (' + licenseNo + ')' : '');
+                                var regNo = document.getElementById('registration_no') ? document.getElementById('registration_no').value.trim() : '';
+                                var licenseNo = document.getElementById('license_no') ? document.getElementById('license_no').value.trim() : '';
+                                var vehicleName = (regNo || licenseNo) ? (regNo + (licenseNo ? ' (' + licenseNo + ')' : '')) : ('Vehicle_' + Date.now());
                                 
                                 if (statusSel && statusSel.value === 'idle') {
                                     if (window.AndroidBridge) {
