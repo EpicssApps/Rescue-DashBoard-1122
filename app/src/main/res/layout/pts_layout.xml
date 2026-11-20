@@ -44,6 +44,18 @@
             android:textSize="20sp" />
 
         <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/btn10"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="50dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="50dp"
+            android:background="@drawable/shape"
+            android:text="@string/bna10"
+            android:textColor="@color/white"
+            android:textSize="20sp" />
+
+        <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/bna11"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -69,14 +81,14 @@
             android:textSize="20sp" />
 
         <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/bna22"
+            android:id="@+id/bna18"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="50dp"
             android:layout_marginTop="8dp"
             android:layout_marginEnd="50dp"
             android:background="@drawable/shape"
-            android:text="@string/bna22"
+            android:text="@string/bna18"
             android:textColor="@color/white"
             android:textSize="20sp" />
 

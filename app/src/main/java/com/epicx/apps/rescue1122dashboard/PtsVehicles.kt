@@ -23,23 +23,27 @@ class PtsVehicles : DialogFragment() {
 
         with(binding!!){
             bna7.setOnClickListener {
-                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1338/edit")
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/6526/edit")
                 findNavController().navigate(direction)
             }
             bna08.setOnClickListener {
                 val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1570/edit")
                 findNavController().navigate(direction)
             }
+            btn10.setOnClickListener {
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/6153/edit")
+                findNavController().navigate(direction)
+            }
             bna11.setOnClickListener {
-                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1202/edit")
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/6479/edit")
                 findNavController().navigate(direction)
             }
             bna13.setOnClickListener {
                 val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/6221/edit")
                 findNavController().navigate(direction)
             }
-            bna22.setOnClickListener {
-                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/1301/edit")
+            bna18.setOnClickListener {
+                val direction = PtsVehiclesDirections.actionPtsVehiclesToShowWebView("https://punjab.rescue1122.org/dashboard/vehicle/6559/edit")
                 findNavController().navigate(direction)
             }
 

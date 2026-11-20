@@ -14,7 +14,7 @@
     <string name="bna8">BNA 08</string>
     <string name="bna9">BNA 09</string>
     <string name="bna21">BNA 21</string>
-    <string name="bna22">BNA 22</string>
+    <string name="bna18">BNA 18</string>
     <string name="motorBike">MotorBike</string>
     <string name="BNB01">BNB 1</string>
     <string name="BNB02">BNB 2</string>
@@ -103,7 +103,7 @@
     <string name="bnf1">BNF 01</string>
     <string name="bfn3">BNF 03</string>
     <string name="bnr1">BNR 1</string>
-    <string name="bng11">BNG 1</string>
+    <string name="bnd1">BND 1</string>
     <string name="bna7">BNA 07</string>
     <string name="vehiclesStatus">Vehicle\n Status</string>
     <string name="allVehicleStatus">All Vehicle Status</string>
