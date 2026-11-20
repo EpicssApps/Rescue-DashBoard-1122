@@ -2,6 +2,7 @@ package com.epicx.apps.rescue1122dashboard
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
+import android.app.AlarmManager
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -130,6 +131,15 @@ class ShowWebView : Fragment(R.layout.show_web_view){
         }
 
         @JavascriptInterface
+        fun onVehicleMadeActive(vehicleName: String) {
+            Log.d("WebClientDebug", "Vehicle made active/idle, cancelling timer for: $vehicleName")
+            Handler(Looper.getMainLooper()).post {
+                VehicleTimerManager.cancelTimer(context, vehicleName)
+                Toast.makeText(context, "Timer cancelled for $vehicleName (Vehicle is Active)", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        @JavascriptInterface
         fun onMinorMaintenanceSubmitted(vehicleName: String, reason: String) {
             Log.d("WebClientDebug", "Minor maintenance submitted intercepted for: $vehicleName, reason: $reason")
 
@@ -139,6 +149,19 @@ class ShowWebView : Fragment(R.layout.show_web_view){
                     if (context is android.app.Activity) {
                         context.requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
                     }
+                }
+            }
+
+            // Check exact alarm permission on Android 12+ (API 31+) for Vivo / Android 14+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+                if (!alarmManager.canScheduleExactAlarms()) {
+                    try {
+                        val intent = Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                            data = Uri.parse("package:${context.packageName}")
+                        }
+                        context.startActivity(intent)
+                    } catch (_: Exception) {}
                 }
             }
 
@@ -173,11 +196,12 @@ class ShowWebView : Fragment(R.layout.show_web_view){
 
             val items = arrayOf(
                 "-- Select Timer Duration --",
+                "1 Minute (Testing)",
                 "10 Minutes", "15 Minutes", "20 Minutes", "25 Minutes",
                 "30 Minutes", "35 Minutes", "40 Minutes", "45 Minutes",
                 "50 Minutes", "55 Minutes", "60 Minutes"
             )
-            val timeValues = intArrayOf(0, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
+            val timeValues = intArrayOf(0, 1, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
 
             val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, items)
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -249,14 +273,19 @@ class ShowWebView : Fragment(R.layout.show_web_view){
                                 var typeSel = document.getElementById('maintenanceType');
                                 var reasonSel = document.getElementById('reason_maintenance_id');
                                 
-                                if (statusSel && statusSel.value === 'maintenance' && typeSel && typeSel.value === 'minor') {
+                                var regNo = document.getElementById('registration_no') ? document.getElementById('registration_no').value : 'Vehicle';
+                                var licenseNo = document.getElementById('license_no') ? document.getElementById('license_no').value : '';
+                                var vehicleName = regNo + (licenseNo ? ' (' + licenseNo + ')' : '');
+                                
+                                if (statusSel && statusSel.value === 'idle') {
+                                    if (window.AndroidBridge) {
+                                        window.AndroidBridge.logMessage("Vehicle made active/idle: " + vehicleName);
+                                        window.AndroidBridge.onVehicleMadeActive(vehicleName);
+                                    }
+                                } else if (statusSel && statusSel.value === 'maintenance' && typeSel && typeSel.value === 'minor') {
                                     e.preventDefault();
                                     e.stopPropagation();
                                     e.stopImmediatePropagation();
-                                    
-                                    var regNo = document.getElementById('registration_no') ? document.getElementById('registration_no').value : 'Vehicle';
-                                    var licenseNo = document.getElementById('license_no') ? document.getElementById('license_no').value : '';
-                                    var vehicleName = regNo + (licenseNo ? ' (' + licenseNo + ')' : '');
                                     
                                     var reasonText = 'Minor Maintenance';
                                     if (reasonSel && reasonSel.selectedIndex >= 0) {
