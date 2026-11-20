@@ -1,21 +1,30 @@
 package com.epicx.apps.rescue1122dashboard
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
 import android.view.*
+import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
-import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.ArrayAdapter
 import android.widget.ProgressBar
+import android.widget.Spinner
+import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.epicx.apps.rescue1122dashboard.viewModel.WebViewModel
 import android.content.Intent
+import android.os.Build
 import androidx.preference.PreferenceManager
 
 class ShowWebView : Fragment(R.layout.show_web_view){
@@ -44,6 +53,8 @@ class ShowWebView : Fragment(R.layout.show_web_view){
 
         val args = ShowWebViewArgs.fromBundle(requireArguments())
         val progressBar = view.findViewById<ProgressBar>(R.id.progress_circular)
+
+        myWebView?.addJavascriptInterface(WebAppInterface(requireContext(), myWebView!!), "AndroidBridge")
 
         myWebView?.webViewClient = MyWebViewClient(
             context = requireContext(),
@@ -109,6 +120,93 @@ class ShowWebView : Fragment(R.layout.show_web_view){
         return super.onOptionsItemSelected(item)
     }
 
+    class WebAppInterface(
+        private val context: Context,
+        private val webView: WebView
+    ) {
+        @JavascriptInterface
+        fun logMessage(msg: String) {
+            Log.d("WebClientDebug", msg)
+        }
+
+        @JavascriptInterface
+        fun onMinorMaintenanceSubmitted(vehicleName: String, reason: String) {
+            Log.d("WebClientDebug", "Minor maintenance submitted intercepted for: $vehicleName, reason: $reason")
+
+            // Check and request notification permission on Android 13+ (API 33+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    if (context is android.app.Activity) {
+                        context.requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+                    }
+                }
+            }
+
+            Handler(Looper.getMainLooper()).post {
+                showTimeSelectionDialog(context, vehicleName, reason) { selectedMinutes ->
+                    webView.post {
+                        val js = """
+                            (function() {
+                                window.allowVehicleSubmit = true;
+                                var btn = document.getElementById('submit_btn');
+                                if (btn) {
+                                    btn.click();
+                                } else {
+                                    var form = document.getElementById('vehicle_form') || document.querySelector('form');
+                                    if (form) form.submit();
+                                }
+                            })();
+                        """.trimIndent()
+                        webView.evaluateJavascript(js, null)
+                    }
+                    VehicleTimerManager.startTimer(context, vehicleName, reason, selectedMinutes)
+                }
+            }
+        }
+
+        private fun showTimeSelectionDialog(context: Context, vehicleName: String, reason: String, onTimeSelected: (Int) -> Unit) {
+            val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_select_time, null)
+            val tvVehicleInfo = dialogView.findViewById<TextView>(R.id.tvVehicleInfo)
+            val spinnerTime = dialogView.findViewById<Spinner>(R.id.spinnerTime)
+
+            tvVehicleInfo.text = "Vehicle: $vehicleName\nReason: $reason"
+
+            val items = arrayOf(
+                "-- Select Timer Duration --",
+                "10 Minutes", "15 Minutes", "20 Minutes", "25 Minutes",
+                "30 Minutes", "35 Minutes", "40 Minutes", "45 Minutes",
+                "50 Minutes", "55 Minutes", "60 Minutes"
+            )
+            val timeValues = intArrayOf(0, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
+
+            val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, items)
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            spinnerTime.adapter = adapter
+
+            val dialog = AlertDialog.Builder(context)
+                .setTitle("Minor Maintenance Timer")
+                .setView(dialogView)
+                .setPositiveButton("Submit & Start Timer", null)
+                .setNegativeButton("Cancel", null)
+                .create()
+
+            dialog.setOnShowListener {
+                val button = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                button.setOnClickListener {
+                    val selectedPosition = spinnerTime.selectedItemPosition
+                    if (selectedPosition == 0) {
+                        Toast.makeText(context, "Please select a valid timer duration!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        val selectedMinutes = timeValues[selectedPosition]
+                        dialog.dismiss()
+                        onTimeSelected(selectedMinutes)
+                    }
+                }
+            }
+            dialog.show()
+        }
+    }
+
     class MyWebViewClient(
         private val context: Context,
         progressBar: ProgressBar,
@@ -134,15 +232,57 @@ class ShowWebView : Fragment(R.layout.show_web_view){
                 view?.evaluateJavascript("document.getElementById('captcha') && (document.getElementById('captcha').inputMode = 'numeric');", null)
             }
 
+            // Intercept submit_btn click for Minor Maintenance
+            if (url?.contains("/vehicle/") == true) {
+                val interceptJs = """
+                    (function() {
+                        if (window.vehicleInterceptorInitialized) return;
+                        window.vehicleInterceptorInitialized = true;
+                        
+                        document.addEventListener('click', function(e) {
+                            if (window.allowVehicleSubmit) {
+                                return;
+                            }
+                            var btn = e.target.closest('#submit_btn, button[type=submit], input[type=submit]');
+                            if (btn) {
+                                var statusSel = document.getElementById('status');
+                                var typeSel = document.getElementById('maintenanceType');
+                                var reasonSel = document.getElementById('reason_maintenance_id');
+                                
+                                if (statusSel && statusSel.value === 'maintenance' && typeSel && typeSel.value === 'minor') {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    e.stopImmediatePropagation();
+                                    
+                                    var regNo = document.getElementById('registration_no') ? document.getElementById('registration_no').value : 'Vehicle';
+                                    var licenseNo = document.getElementById('license_no') ? document.getElementById('license_no').value : '';
+                                    var vehicleName = regNo + (licenseNo ? ' (' + licenseNo + ')' : '');
+                                    
+                                    var reasonText = 'Minor Maintenance';
+                                    if (reasonSel && reasonSel.selectedIndex >= 0) {
+                                        var opt = reasonSel.options[reasonSel.selectedIndex];
+                                        reasonText = opt.getAttribute('data-title') || opt.text || 'Minor Maintenance';
+                                    }
+                                    
+                                    if (window.AndroidBridge) {
+                                        window.AndroidBridge.logMessage("Intercepted submit click for minor maintenance vehicle: " + vehicleName);
+                                        window.AndroidBridge.onMinorMaintenanceSubmitted(vehicleName, reasonText);
+                                    }
+                                }
+                            }
+                        }, true);
+                    })();
+                """.trimIndent()
+                view?.evaluateJavascript(interceptJs, null)
+            }
+
             // Force desktop viewport when desktop mode is ON
             val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-            val desktopMode = prefs.getBoolean("desktop_mode", false)
-            if (desktopMode) {
-                // Set a wider viewport and scale it to fit the device width
+            if (prefs.getBoolean("desktop_mode", false)) {
                 val js = """
                     (function(){
                         try {
-                            var target = 1280; // target desktop width in CSS px
+                            var target = 1280;
                             var scale = (window.innerWidth || document.documentElement.clientWidth || 360) / target;
                             if (!isFinite(scale) || scale <= 0) { scale = 0.5; }
                             var content = 'width=' + target + ', initial-scale=' + scale + ', minimum-scale=0.1, maximum-scale=5, user-scalable=1';
@@ -164,7 +304,6 @@ class ShowWebView : Fragment(R.layout.show_web_view){
             super.onPageFinished(view, url)
         }
 
-        // For modern Android (Lollipop+)
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
             val uri = request?.url
             if (uri != null) {
@@ -174,7 +313,6 @@ class ShowWebView : Fragment(R.layout.show_web_view){
             return false
         }
 
-        // For older Android
         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
             if (url != null) {
                 view?.loadUrl(url)
