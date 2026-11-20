@@ -7,7 +7,11 @@ object VehicleTimerManager {
         VehicleTimerService.startTimer(context, vehicleName, reason, minutes)
     }
 
-    fun cancelTimer(context: Context, vehicleName: String) {
-        VehicleTimerService.cancelTimer(context, vehicleName)
+    fun cancelTimer(context: Context, vehicleName: String): Boolean {
+        if (VehicleTimerService.isTimerActive(vehicleName)) {
+            VehicleTimerService.cancelTimer(context, vehicleName)
+            return true
+        }
+        return false
     }
 }

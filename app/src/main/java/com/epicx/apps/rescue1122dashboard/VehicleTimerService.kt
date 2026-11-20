@@ -16,12 +16,21 @@ import androidx.core.app.NotificationCompat
 import java.util.concurrent.ConcurrentHashMap
 
 class VehicleTimerService : Service() {
-    private val activeTimers = ConcurrentHashMap<String, Long>()
 
     companion object {
         private const val TAG = "VehicleTimerDebug"
         private const val TIMER_CHANNEL_ID = "vehicle_timer_channel_silent"
         private const val ALARM_CHANNEL_ID = "vehicle_alarm_channel_sound_v2"
+
+        private val activeTimers = ConcurrentHashMap<String, Long>()
+
+        fun isTimerActive(vehicleName: String): Boolean {
+            return activeTimers.containsKey(vehicleName)
+        }
+
+        fun removeTimer(vehicleName: String) {
+            activeTimers.remove(vehicleName)
+        }
 
         fun startTimer(context: Context, vehicleName: String, reason: String, minutes: Int) {
             val intent = Intent(context, VehicleTimerService::class.java).apply {

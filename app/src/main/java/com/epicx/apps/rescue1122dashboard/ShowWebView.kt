@@ -132,10 +132,12 @@ class ShowWebView : Fragment(R.layout.show_web_view){
 
         @JavascriptInterface
         fun onVehicleMadeActive(vehicleName: String) {
-            Log.d("WebClientDebug", "Vehicle made active/idle, cancelling timer for: $vehicleName")
+            Log.d("WebClientDebug", "Vehicle made active/idle, checking timer for: $vehicleName")
             Handler(Looper.getMainLooper()).post {
-                VehicleTimerManager.cancelTimer(context, vehicleName)
-                Toast.makeText(context, "Timer cancelled for $vehicleName (Vehicle is Active)", Toast.LENGTH_SHORT).show()
+                val wasCancelled = VehicleTimerManager.cancelTimer(context, vehicleName)
+                if (wasCancelled) {
+                    Toast.makeText(context, "Timer cancelled for $vehicleName (Vehicle is Active)", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 

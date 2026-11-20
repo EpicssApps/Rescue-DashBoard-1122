@@ -45,6 +45,8 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         val reason = intent.getStringExtra("reason") ?: "Maintenance"
         Log.d(TAG, "==> VehicleAlarmReceiver onReceive FIRED for vehicle: $vehicleName, reason: $reason")
 
+        VehicleTimerService.removeTimer(vehicleName)
+
         wakeUpAndPlayAlarm(context, vehicleName, reason)
     }
 
