@@ -144,19 +144,13 @@ class VehicleSyncWorker(
 
             var outOfSyncVehicles = emptyList<String>()
 
-            // Step 2: AJAX POST for 100 entries with complete DataTables schema
+            // Step 2: AJAX POST for 100 entries with complete DataTables schema (Primary & most accurate method)
             if (csrfToken.isNotEmpty()) {
                 outOfSyncVehicles = fetchAll100EntriesViaAjax(cookies, csrfToken)
             }
 
-            // Step 3: Fallback 1 - CSV Export Endpoint (?export=1)
-            if (outOfSyncVehicles.isEmpty()) {
-                Log.d(TAG, "Attempting CSV Export fallback (?export=1)...")
-                outOfSyncVehicles = fetchAllViaCsvExport(cookies)
-            }
-
-            // Step 4: Fallback 2 - Parsing initial GET HTML
-            if (outOfSyncVehicles.isEmpty()) {
+            // Step 3: Fallback - Parsing initial GET HTML if AJAX failed
+            if (outOfSyncVehicles.isEmpty() && getHtml.isNotEmpty()) {
                 Log.d(TAG, "Parsing initial HTML fallback...")
                 outOfSyncVehicles = parseOutOfSyncVehicles(getHtml)
             }
@@ -197,6 +191,40 @@ class VehicleSyncWorker(
         }
 
         return false
+    }
+
+    private fun extractCleanVehicleName(col1Html: String, fallbackIndex: Int): String {
+        try {
+            val doc = Jsoup.parse(col1Html)
+            val regSpan = doc.select("span[data-original-title=Registration Number]").first()
+            if (regSpan != null) {
+                val text = regSpan.text().trim()
+                if (text.isNotEmpty() && !text.contains("Staff App", ignoreCase = true)) {
+                    return text
+                }
+            }
+
+            val spans = doc.select("span")
+            for (span in spans) {
+                val spanText = span.text().trim()
+                if (spanText.isNotEmpty() &&
+                    !spanText.contains("N/A", ignoreCase = true) &&
+                    !spanText.contains("Bahawalnagar", ignoreCase = true) &&
+                    !spanText.contains("Staff App", ignoreCase = true) &&
+                    !spanText.contains("Station", ignoreCase = true) &&
+                    !spanText.contains("District", ignoreCase = true)) {
+                    return spanText
+                }
+            }
+
+            val rawText = doc.text().trim()
+            val firstWord = rawText.split(" ").firstOrNull { it.isNotBlank() && !it.contains("Staff", ignoreCase = true) }
+            if (!firstWord.isNullOrEmpty()) {
+                return firstWord
+            }
+        } catch (_: Exception) {}
+
+        return "Vehicle#$fallbackIndex"
     }
 
     private fun fetchAll100EntriesViaAjax(cookies: String, csrfToken: String): List<String> {
@@ -243,24 +271,18 @@ class VehicleSyncWorker(
                     for (i in 0 until dataArray.size()) {
                         val rowElement = dataArray.get(i)
                         var vehicleName = ""
-                        var fullRowText = rowElement.toString()
+                        val fullRowText = rowElement.toString()
 
                         if (rowElement.isJsonArray) {
                             val rowCols = rowElement.asJsonArray
                             // Column 1 is Vehicle Info
                             if (rowCols.size() > 1) {
                                 val col1Html = rowCols.get(1).asString
-                                val doc = Jsoup.parse(col1Html)
-                                val regSpan = doc.select("span[data-original-title=Registration Number]").first()
-                                vehicleName = if (regSpan != null) {
-                                    regSpan.text().trim()
-                                } else {
-                                    doc.text().trim()
-                                }
+                                vehicleName = extractCleanVehicleName(col1Html, i + 1)
                             }
                         }
 
-                        if (vehicleName.isEmpty()) {
+                        if (vehicleName.isEmpty() || vehicleName.contains("Staff App", ignoreCase = true)) {
                             vehicleName = "Vehicle#${i + 1}"
                         }
 
@@ -289,58 +311,6 @@ class VehicleSyncWorker(
             postConnection.disconnect()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching 100 entries via AJAX POST: ${e.message}")
-        }
-        return outOfSyncList.distinct()
-    }
-
-    private fun fetchAllViaCsvExport(cookies: String): List<String> {
-        val outOfSyncList = mutableListOf<String>()
-        try {
-            val csvUrl = URL("https://punjab.rescue1122.org/dashboard/vehicle/diagnose?export=1")
-            val connection = (csvUrl.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                setRequestProperty("Cookie", cookies)
-                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
-                connectTimeout = 15000
-                readTimeout = 15000
-                instanceFollowRedirects = true
-            }
-
-            val responseCode = connection.responseCode
-            Log.i(TAG, "📡 [CSV EXPORT FALLBACK] Status Code: $responseCode")
-
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                val reader = BufferedReader(InputStreamReader(connection.inputStream))
-                var line: String?
-                var rowCount = 0
-                while (reader.readLine().also { line = it } != null) {
-                    val csvLine = line ?: ""
-                    rowCount++
-
-                    val isStaffAppOutOfSync = csvLine.contains("Staff App is out of sync", ignoreCase = true)
-                    val isOffDutyOrUnmarked = csvLine.contains("Attendance is not marked", ignoreCase = true) ||
-                            csvLine.contains("No Rescuer Associated", ignoreCase = true)
-
-                    if (isStaffAppOutOfSync) {
-                        val parts = csvLine.split(",")
-                        val vehicleName = if (parts.size > 1) parts[1].trim().replace("\"", "") else "Vehicle#$rowCount"
-
-                        if (isExcludedVehicle(vehicleName)) {
-                            Log.i(TAG, "   ⏭️ [CSV EXPORT] Vehicle [$vehicleName] -> OUT OF SYNC BUT EXCLUDED")
-                        } else if (isOffDutyOrUnmarked) {
-                            Log.i(TAG, "   ⏭️ [CSV EXPORT] Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (Off-duty)")
-                        } else {
-                            outOfSyncList.add(vehicleName)
-                            Log.w(TAG, "   ⚠️ [CSV EXPORT] Found Real Out-Of-Sync Vehicle: $vehicleName")
-                        }
-                    }
-                }
-                reader.close()
-                Log.i(TAG, "📊 [CSV EXPORT FALLBACK] Total lines processed: $rowCount")
-            }
-            connection.disconnect()
-        } catch (e: Exception) {
-            Log.e(TAG, "Error fetching CSV export fallback: ${e.message}")
         }
         return outOfSyncList.distinct()
     }
@@ -376,25 +346,19 @@ class VehicleSyncWorker(
 
         var rowIndex = 1
         for (row in rows) {
-            val rowText = row.text()
-            val rowHtml = row.html()
-
             val cells = row.select("td")
             var vehicleName = ""
 
             if (cells.size > 1) {
-                val col1Doc = Jsoup.parse(cells[1].html())
-                val regSpan = col1Doc.select("span[data-original-title=Registration Number]").first()
-                vehicleName = if (regSpan != null) {
-                    regSpan.text().trim()
-                } else {
-                    cells[1].text().trim()
-                }
+                vehicleName = extractCleanVehicleName(cells[1].html(), rowIndex)
             }
 
-            if (vehicleName.isEmpty()) {
+            if (vehicleName.isEmpty() || vehicleName.contains("Staff App", ignoreCase = true)) {
                 vehicleName = "Vehicle#$rowIndex"
             }
+
+            val rowText = row.text()
+            val rowHtml = row.html()
 
             val isStaffAppOutOfSync = rowText.contains("Staff App is out of sync", ignoreCase = true) ||
                     rowHtml.contains("Staff App is out of sync", ignoreCase = true)
