@@ -162,10 +162,10 @@ class VehicleSyncWorker(
             }
 
             if (outOfSyncVehicles.isNotEmpty()) {
-                Log.w(TAG, "🚨 [OUT OF SYNC DETECTED] Found ${outOfSyncVehicles.size} Out-of-Sync Vehicle(s): $outOfSyncVehicles")
+                Log.w(TAG, "🚨 [OUT OF SYNC DETECTED] Found ${outOfSyncVehicles.size} Active Out-of-Sync Vehicle(s): $outOfSyncVehicles")
                 triggerAlarm(context, outOfSyncVehicles)
             } else {
-                Log.i(TAG, "✅ [STATUS OK] All active vehicles are IN SYNC! No out-of-sync vehicle found.")
+                Log.i(TAG, "✅ [STATUS OK] All active on-duty emergency vehicles are IN SYNC! No action required.")
             }
 
             Log.i(TAG, "==================================================")
@@ -176,6 +176,27 @@ class VehicleSyncWorker(
             Log.i(TAG, "==================================================")
             return Result.retry()
         }
+    }
+
+    private fun isExcludedVehicle(vehicleName: String): Boolean {
+        val nameUpper = vehicleName.trim().uppercase()
+
+        // 1. Air Ambulance (AIR-AMB1, AIR-AMB, etc.)
+        if (nameUpper.contains("AIR-AMB")) {
+            return true
+        }
+
+        // 2. BNG General Duty Vans (BNG-01, BNG-1, etc.)
+        if (nameUpper.contains("BNG-")) {
+            return true
+        }
+
+        // 3. BWN-BT Rescue Boats (BWN-BT-01 to BWN-BT-13 or any BWN-BT)
+        if (nameUpper.contains("BWN-BT")) {
+            return true
+        }
+
+        return false
     }
 
     private fun fetchAll100EntriesViaAjax(cookies: String, csrfToken: String): List<String> {
@@ -221,32 +242,46 @@ class VehicleSyncWorker(
 
                     for (i in 0 until dataArray.size()) {
                         val rowElement = dataArray.get(i)
-                        val rowString = rowElement.toString()
+                        var vehicleName = ""
+                        var fullRowText = rowElement.toString()
 
-                        if (rowString.contains("Staff App is out of sync", ignoreCase = true)) {
-                            var vehicleName = ""
-
-                            val doc = Jsoup.parse(rowString)
-                            val regSpan = doc.select("span[data-original-title=Registration Number]").first()
-                            if (regSpan != null) {
-                                vehicleName = regSpan.text().trim()
-                            }
-
-                            if (vehicleName.isEmpty()) {
-                                val regMatch = Regex("Registration Number[\"'][^>]*>([^<]+)<").find(rowString)
-                                if (regMatch != null) {
-                                    vehicleName = regMatch.groupValues[1].trim()
+                        if (rowElement.isJsonArray) {
+                            val rowCols = rowElement.asJsonArray
+                            // Column 1 is Vehicle Info
+                            if (rowCols.size() > 1) {
+                                val col1Html = rowCols.get(1).asString
+                                val doc = Jsoup.parse(col1Html)
+                                val regSpan = doc.select("span[data-original-title=Registration Number]").first()
+                                vehicleName = if (regSpan != null) {
+                                    regSpan.text().trim()
+                                } else {
+                                    doc.text().trim()
                                 }
                             }
+                        }
 
-                            if (vehicleName.isEmpty()) {
-                                vehicleName = "Vehicle#${i + 1}"
+                        if (vehicleName.isEmpty()) {
+                            vehicleName = "Vehicle#${i + 1}"
+                        }
+
+                        // 1. Must have "Staff App is out of sync"
+                        val isStaffAppOutOfSync = fullRowText.contains("Staff App is out of sync", ignoreCase = true)
+
+                        // 2. Must NOT have "Attendance is not marked" or "No Rescuer Associated" (off-duty shifts)
+                        val isOffDutyOrUnmarked = fullRowText.contains("Attendance is not marked", ignoreCase = true) ||
+                                fullRowText.contains("No Rescuer Associated", ignoreCase = true)
+
+                        if (isStaffAppOutOfSync) {
+                            if (isExcludedVehicle(vehicleName)) {
+                                Log.i(TAG, "   ⏭️ Entry ${i + 1}: Vehicle [$vehicleName] -> OUT OF SYNC BUT EXCLUDED (Non-Emergency Vehicle)")
+                            } else if (isOffDutyOrUnmarked) {
+                                Log.i(TAG, "   ⏭️ Entry ${i + 1}: Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (Off-duty: Attendance is not marked / No Rescuer)")
+                            } else {
+                                Log.w(TAG, "   ⚠️ Entry ${i + 1}: Vehicle [$vehicleName] -> REAL OUT OF SYNC! (Staff on Duty & App Out of Sync)")
+                                outOfSyncList.add(vehicleName)
                             }
-
-                            Log.w(TAG, "   ⚠️ Entry ${i + 1}: Vehicle [$vehicleName] -> STAFF APP IS OUT OF SYNC!")
-                            outOfSyncList.add(vehicleName)
                         } else {
-                            Log.d(TAG, "   ✓ Entry ${i + 1} -> Normal")
+                            Log.d(TAG, "   ✓ Entry ${i + 1}: Vehicle [$vehicleName] -> Normal")
                         }
                     }
                 }
@@ -281,11 +316,23 @@ class VehicleSyncWorker(
                 while (reader.readLine().also { line = it } != null) {
                     val csvLine = line ?: ""
                     rowCount++
-                    if (csvLine.contains("Staff App is out of sync", ignoreCase = true)) {
+
+                    val isStaffAppOutOfSync = csvLine.contains("Staff App is out of sync", ignoreCase = true)
+                    val isOffDutyOrUnmarked = csvLine.contains("Attendance is not marked", ignoreCase = true) ||
+                            csvLine.contains("No Rescuer Associated", ignoreCase = true)
+
+                    if (isStaffAppOutOfSync) {
                         val parts = csvLine.split(",")
                         val vehicleName = if (parts.size > 1) parts[1].trim().replace("\"", "") else "Vehicle#$rowCount"
-                        outOfSyncList.add(vehicleName)
-                        Log.w(TAG, "   ⚠️ [CSV EXPORT] Found Out-Of-Sync Vehicle: $vehicleName")
+
+                        if (isExcludedVehicle(vehicleName)) {
+                            Log.i(TAG, "   ⏭️ [CSV EXPORT] Vehicle [$vehicleName] -> OUT OF SYNC BUT EXCLUDED")
+                        } else if (isOffDutyOrUnmarked) {
+                            Log.i(TAG, "   ⏭️ [CSV EXPORT] Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (Off-duty)")
+                        } else {
+                            outOfSyncList.add(vehicleName)
+                            Log.w(TAG, "   ⚠️ [CSV EXPORT] Found Real Out-Of-Sync Vehicle: $vehicleName")
+                        }
                     }
                 }
                 reader.close()
@@ -332,22 +379,16 @@ class VehicleSyncWorker(
             val rowText = row.text()
             val rowHtml = row.html()
 
-            val isOutOfSync = rowText.contains("Staff App is out of sync", ignoreCase = true) ||
-                    rowHtml.contains("Staff App is out of sync", ignoreCase = true)
-
+            val cells = row.select("td")
             var vehicleName = ""
-            val regSpan = row.select("span[data-original-title=Registration Number]").first()
-            if (regSpan != null) {
-                vehicleName = regSpan.text().trim()
-            }
 
-            if (vehicleName.isEmpty()) {
-                val firstCell = row.select("td.sorting_1, td:nth-child(2)").first()
-                if (firstCell != null) {
-                    val spans = firstCell.select("span")
-                    if (spans.isNotEmpty()) {
-                        vehicleName = spans.first()?.text()?.trim() ?: ""
-                    }
+            if (cells.size > 1) {
+                val col1Doc = Jsoup.parse(cells[1].html())
+                val regSpan = col1Doc.select("span[data-original-title=Registration Number]").first()
+                vehicleName = if (regSpan != null) {
+                    regSpan.text().trim()
+                } else {
+                    cells[1].text().trim()
                 }
             }
 
@@ -355,9 +396,23 @@ class VehicleSyncWorker(
                 vehicleName = "Vehicle#$rowIndex"
             }
 
-            if (isOutOfSync) {
-                Log.w(TAG, "   ⚠️ Row $rowIndex: Vehicle [$vehicleName] -> STAFF APP IS OUT OF SYNC!")
-                outOfSyncList.add(vehicleName)
+            val isStaffAppOutOfSync = rowText.contains("Staff App is out of sync", ignoreCase = true) ||
+                    rowHtml.contains("Staff App is out of sync", ignoreCase = true)
+
+            val isOffDutyOrUnmarked = rowText.contains("Attendance is not marked", ignoreCase = true) ||
+                    rowHtml.contains("Attendance is not marked", ignoreCase = true) ||
+                    rowText.contains("No Rescuer Associated", ignoreCase = true) ||
+                    rowHtml.contains("No Rescuer Associated", ignoreCase = true)
+
+            if (isStaffAppOutOfSync) {
+                if (isExcludedVehicle(vehicleName)) {
+                    Log.i(TAG, "   ⏭️ Row $rowIndex: Vehicle [$vehicleName] -> OUT OF SYNC BUT EXCLUDED")
+                } else if (isOffDutyOrUnmarked) {
+                    Log.i(TAG, "   ⏭️ Row $rowIndex: Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (Off-duty: Attendance is not marked / No Rescuer)")
+                } else {
+                    Log.w(TAG, "   ⚠️ Row $rowIndex: Vehicle [$vehicleName] -> REAL OUT OF SYNC!")
+                    outOfSyncList.add(vehicleName)
+                }
             } else {
                 Log.d(TAG, "   ✓ Row $rowIndex: Vehicle [$vehicleName] -> Normal")
             }
