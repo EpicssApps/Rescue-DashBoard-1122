@@ -128,7 +128,8 @@ class VehicleSyncWorker(
                     Log.i(TAG, "✅ [STATUS OK] All active vehicles are IN SYNC! No out-of-sync vehicle found.")
                 }
             } else if (responseCode == 401 || responseCode == 419) {
-                Log.e(TAG, "❌ [AUTH ERROR] Session expired or invalid CSRF/Session token ($responseCode). User needs to open app & re-login.")
+                Log.e(TAG, "❌ [AUTH ERROR] Session expired or invalid token ($responseCode). Showing notification to re-login.")
+                showSessionExpiredNotification(context)
             } else {
                 Log.e(TAG, "⚠️ [HTTP ERROR] Unexpected response status code: $responseCode")
             }
@@ -198,5 +199,24 @@ class VehicleSyncWorker(
             putStringArrayListExtra(EXTRA_OUT_OF_SYNC_VEHICLES, ArrayList(outOfSyncVehicles))
         }
         context.sendBroadcast(intent)
+    }
+
+    private fun showSessionExpiredNotification(context: Context) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingFlags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        val pendingIntent = android.app.PendingIntent.getActivity(context, 0, intent, pendingFlags)
+
+        val notification = androidx.core.app.NotificationCompat.Builder(context, "vehicle_timer_channel_silent")
+            .setSmallIcon(android.R.drawable.ic_dialog_alert)
+            .setContentTitle("⚠️ Rescue 1122 Session Expired")
+            .setContentText("Your web session expired. Tap here to re-login.")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(7777, notification)
     }
 }
