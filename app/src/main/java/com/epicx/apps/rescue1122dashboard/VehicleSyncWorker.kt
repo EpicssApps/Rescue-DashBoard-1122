@@ -24,20 +24,42 @@ class VehicleSyncWorker(
         const val EXTRA_OUT_OF_SYNC_VEHICLES = "extra_out_of_sync_vehicles"
 
         fun schedulePeriodicSync(context: Context) {
-            val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
-                .build()
+            try {
+                val workManager = WorkManager.getInstance(context)
+                val workInfoList = workManager.getWorkInfosForUniqueWork(WORK_NAME).get()
 
-            val syncRequest = PeriodicWorkRequestBuilder<VehicleSyncWorker>(5, TimeUnit.MINUTES)
-                .setConstraints(constraints)
-                .build()
+                var isAlreadyScheduled = false
+                if (!workInfoList.isNullOrEmpty()) {
+                    for (workInfo in workInfoList) {
+                        if (workInfo.state == WorkInfo.State.ENQUEUED || workInfo.state == WorkInfo.State.RUNNING) {
+                            isAlreadyScheduled = true
+                            break
+                        }
+                    }
+                }
 
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-                WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
-                syncRequest
-            )
-            Log.i(TAG, "🟢 [BACKGROUND WORKER] Periodic 5-minute VehicleSyncWorker scheduled successfully!")
+                if (isAlreadyScheduled) {
+                    Log.d(TAG, "🟢 [BACKGROUND WORKER] 15-minute VehicleSyncWorker is ALREADY active. Timer was NOT reset.")
+                    return
+                }
+
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+
+                val syncRequest = PeriodicWorkRequestBuilder<VehicleSyncWorker>(15, TimeUnit.MINUTES)
+                    .setConstraints(constraints)
+                    .build()
+
+                workManager.enqueueUniquePeriodicWork(
+                    WORK_NAME,
+                    ExistingPeriodicWorkPolicy.KEEP,
+                    syncRequest
+                )
+                Log.i(TAG, "🟢 [BACKGROUND WORKER] Periodic 15-minute VehicleSyncWorker scheduled successfully!")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking or scheduling WorkManager: ${e.message}")
+            }
         }
 
         fun triggerOneTimeSync(context: Context) {
@@ -56,7 +78,7 @@ class VehicleSyncWorker(
 
     override suspend fun doWork(): Result {
         Log.i(TAG, "==================================================")
-        Log.i(TAG, "🔍 [SYNC START] VehicleSyncWorker started checking out-of-sync vehicles...")
+        Log.i(TAG, "🔍 [WORKMANAGER SYNC START] VehicleSyncWorker started checking out-of-sync vehicles (Interval: 15 mins)...")
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val cookies = prefs.getString("session_cookies", "") ?: ""
 
@@ -66,7 +88,7 @@ class VehicleSyncWorker(
             return Result.success()
         }
 
-        Log.d(TAG, "🔑 [COOKIE OK] Using session cookies (length: ${cookies.length})")
+        Log.d(TAG, "🔑 [COOKIE OK] Using saved session cookies")
 
         try {
             val urlString = "https://punjab.rescue1122.org/dashboard/vehicle/diagnose"
