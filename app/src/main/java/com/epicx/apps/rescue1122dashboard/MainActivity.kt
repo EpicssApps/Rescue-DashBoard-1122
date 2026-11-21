@@ -31,6 +31,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     lateinit var navController: NavController
     lateinit var drawerLayout: DrawerLayout
 
+//    Out of Sync Vehicle Monitoring & Alarm System
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -84,6 +86,20 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
+            R.id.check_sync_now -> {
+                VehicleSyncWorker.triggerOneTimeSync(this)
+                android.widget.Toast.makeText(this, "Checking for Out-of-Sync Vehicles...", android.widget.Toast.LENGTH_SHORT).show()
+                return true
+            }
+            R.id.test_sync_alarm -> {
+                val intent = Intent(this, VehicleAlarmReceiver::class.java).apply {
+                    action = VehicleSyncWorker.ACTION_OUT_OF_SYNC_ALARM
+                    putStringArrayListExtra(VehicleSyncWorker.EXTRA_OUT_OF_SYNC_VEHICLES, arrayListOf("TEST-VEHICLE-01"))
+                }
+                sendBroadcast(intent)
+                android.widget.Toast.makeText(this, "Testing Alarm Sound...", android.widget.Toast.LENGTH_SHORT).show()
+                return true
+            }
             R.id.reset -> {
                 resetUserNamePassword()
                 return true

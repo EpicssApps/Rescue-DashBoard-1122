@@ -3,6 +3,18 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/check_sync_now"
+        android:icon="@android:drawable/ic_popup_sync"
+        android:title="Check Out of Sync Vehicles"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/test_sync_alarm"
+        android:icon="@android:drawable/ic_lock_idle_alarm"
+        android:title="Test Alarm Sound"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/reset"
         android:icon="@drawable/ic_reset"
         android:title="@string/share"

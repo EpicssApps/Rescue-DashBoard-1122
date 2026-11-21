@@ -35,9 +35,19 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action?.startsWith("STOP_ALARM_ACTION") == true) {
+        val action = intent.action
+        if (action?.startsWith("STOP_ALARM_ACTION") == true) {
             Log.d(TAG, "Notification dismissed by user. Stopping alarm ringtone.")
             stopAlarmSound()
+            return
+        }
+
+        if (action == VehicleSyncWorker.ACTION_OUT_OF_SYNC_ALARM) {
+            val vehicles = intent.getStringArrayListExtra(VehicleSyncWorker.EXTRA_OUT_OF_SYNC_VEHICLES) ?: arrayListOf()
+            val vehicleListStr = if (vehicles.isNotEmpty()) vehicles.joinToString(", ") else "Unknown Vehicle"
+            Log.w("Rescue1122Sync", "🔊 [ALARM RECEIVER] OUT OF SYNC ALARM FIRED for vehicle(s): $vehicleListStr")
+
+            wakeUpAndPlayOutOfSyncAlarm(context, vehicleListStr)
             return
         }
 
@@ -48,6 +58,54 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         VehicleTimerService.removeTimer(vehicleName)
 
         wakeUpAndPlayAlarm(context, vehicleName, reason)
+    }
+
+    @SuppressLint("WakelockTimeout")
+    private fun wakeUpAndPlayOutOfSyncAlarm(context: Context, vehicleListStr: String) {
+        try {
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+            @Suppress("DEPRECATION")
+            val wakeLock = powerManager.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "Rescue1122:OutOfSyncAlarmWakeLock"
+            )
+            wakeLock.acquire(30000L)
+        } catch (e: Exception) {
+            Log.e(TAG, "WakeLock error: ${e.message}")
+        }
+
+        playAlarm(context)
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val notificationId = 9999
+
+        notificationManager.cancel(notificationId)
+
+        val fullScreenIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val fullScreenPendingIntent = PendingIntent.getActivity(context, 0, fullScreenIntent, pendingFlags)
+
+        val stopIntent = Intent(context, VehicleAlarmReceiver::class.java).apply {
+            action = "STOP_ALARM_ACTION_OUT_OF_SYNC"
+        }
+        val stopPendingIntent = PendingIntent.getBroadcast(context, notificationId + 2000, stopIntent, pendingFlags)
+
+        val alarmNotification = NotificationCompat.Builder(context, ALARM_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("🚨 OUT OF SYNC ALARM: $vehicleListStr")
+            .setContentText("Staff App is out of sync for vehicle(s): $vehicleListStr")
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setDeleteIntent(stopPendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setSound(null)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(notificationId, alarmNotification)
     }
 
     @SuppressLint("WakelockTimeout")

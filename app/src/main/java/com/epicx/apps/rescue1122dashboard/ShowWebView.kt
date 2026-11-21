@@ -251,6 +251,23 @@ class ShowWebView : Fragment(R.layout.show_web_view){
         override fun onPageFinished(view: WebView?, url: String?) {
             myProgressBar.visibility = View.GONE
 
+            // Save session cookies for background Out-Of-Sync worker
+            if (url != null) {
+                try {
+                    val cookies = android.webkit.CookieManager.getInstance().getCookie(url)
+                    if (!cookies.isNullOrEmpty()) {
+                        PreferenceManager.getDefaultSharedPreferences(context)
+                            .edit()
+                            .putString("session_cookies", cookies)
+                            .apply()
+                        Log.i("Rescue1122Sync", "🔑 [COOKIE CAPTURED] Session cookies saved from URL: $url")
+                        VehicleSyncWorker.schedulePeriodicSync(context)
+                    }
+                } catch (e: Exception) {
+                    Log.e("Rescue1122Sync", "❌ Error saving cookies or scheduling sync: ${e.message}")
+                }
+            }
+
             // Auto-fill login
             if (url?.contains("/login") == true){
                 view?.loadUrl("javascript:(function(){  document.getElementsByTagName('input')[1].value ='$userNameOf';})();")
