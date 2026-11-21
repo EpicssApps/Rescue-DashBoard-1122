@@ -5,11 +5,14 @@ import android.content.Intent
 import android.util.Log
 import androidx.preference.PreferenceManager
 import androidx.work.*
+import com.google.gson.Gson
+import com.google.gson.JsonObject
 import org.jsoup.Jsoup
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 class VehicleSyncWorker(
@@ -78,7 +81,7 @@ class VehicleSyncWorker(
 
     override suspend fun doWork(): Result {
         Log.i(TAG, "==================================================")
-        Log.i(TAG, "🔍 [WORKMANAGER SYNC START] VehicleSyncWorker started checking out-of-sync vehicles (Interval: 15 mins)...")
+        Log.i(TAG, "🔍 [WORKMANAGER SYNC START] Checking out-of-sync vehicles (Scanning up to 100 entries)...")
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val cookies = prefs.getString("session_cookies", "") ?: ""
 
@@ -88,14 +91,10 @@ class VehicleSyncWorker(
             return Result.success()
         }
 
-        Log.d(TAG, "🔑 [COOKIE OK] Using saved session cookies")
-
         try {
-            val urlString = "https://punjab.rescue1122.org/dashboard/vehicle/diagnose"
-            Log.d(TAG, "🌐 [HTTP GET] Connecting to: $urlString")
-
-            val url = URL(urlString)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
+            // Step 1: Initial GET request to retrieve CSRF Token
+            val getUrl = URL("https://punjab.rescue1122.org/dashboard/vehicle/diagnose")
+            val getConnection = (getUrl.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Cookie", cookies)
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
@@ -104,36 +103,71 @@ class VehicleSyncWorker(
                 instanceFollowRedirects = true
             }
 
-            val responseCode = connection.responseCode
-            Log.i(TAG, "📡 [HTTP RESPONSE] Status Code: $responseCode")
+            val responseCode = getConnection.responseCode
+            Log.i(TAG, "📡 [HTTP GET RESPONSE] Status Code: $responseCode")
 
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                val reader = BufferedReader(InputStreamReader(connection.inputStream))
-                val htmlBuilder = StringBuilder()
-                var line: String?
-                while (reader.readLine().also { line = it } != null) {
-                    htmlBuilder.append(line).append("\n")
-                }
-                reader.close()
-
-                val html = htmlBuilder.toString()
-                Log.d(TAG, "📄 [HTML RECEIVED] Response HTML length: ${html.length} characters")
-
-                val outOfSyncVehicles = parseOutOfSyncVehicles(html)
-
-                if (outOfSyncVehicles.isNotEmpty()) {
-                    Log.w(TAG, "🚨 [OUT OF SYNC DETECTED] Found ${outOfSyncVehicles.size} Out-of-Sync Vehicle(s): $outOfSyncVehicles")
-                    triggerAlarm(context, outOfSyncVehicles)
-                } else {
-                    Log.i(TAG, "✅ [STATUS OK] All active vehicles are IN SYNC! No out-of-sync vehicle found.")
-                }
-            } else if (responseCode == 401 || responseCode == 419) {
-                Log.e(TAG, "❌ [AUTH ERROR] Session expired or invalid token ($responseCode). Showing notification to re-login.")
+            if (responseCode == 401 || responseCode == 419) {
+                Log.e(TAG, "❌ [AUTH ERROR] Session expired ($responseCode). Showing notification to re-login.")
                 showSessionExpiredNotification(context)
-            } else {
-                Log.e(TAG, "⚠️ [HTTP ERROR] Unexpected response status code: $responseCode")
+                getConnection.disconnect()
+                return Result.success()
             }
-            connection.disconnect()
+
+            if (responseCode != HttpURLConnection.HTTP_OK) {
+                Log.e(TAG, "⚠️ [HTTP ERROR] Unexpected response status code: $responseCode")
+                getConnection.disconnect()
+                return Result.success()
+            }
+
+            val reader = BufferedReader(InputStreamReader(getConnection.inputStream))
+            val htmlBuilder = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                htmlBuilder.append(line).append("\n")
+            }
+            reader.close()
+            getConnection.disconnect()
+
+            val getHtml = htmlBuilder.toString()
+
+            // Extract CSRF Token from HTML page
+            val doc = Jsoup.parse(getHtml)
+            var csrfToken = doc.select("input[name=_token]").`val`().trim()
+            if (csrfToken.isEmpty()) {
+                val match = Regex("var _token = [\"']([^\"']+)[\"']").find(getHtml)
+                if (match != null) {
+                    csrfToken = match.groupValues[1]
+                }
+            }
+
+            Log.d(TAG, "🔑 [CSRF TOKEN] Extracted _token: ${if (csrfToken.isNotEmpty()) csrfToken.take(8) + "..." else "EMPTY"}")
+
+            var outOfSyncVehicles = emptyList<String>()
+
+            // Step 2: AJAX POST for 100 entries with complete DataTables schema
+            if (csrfToken.isNotEmpty()) {
+                outOfSyncVehicles = fetchAll100EntriesViaAjax(cookies, csrfToken)
+            }
+
+            // Step 3: Fallback 1 - CSV Export Endpoint (?export=1)
+            if (outOfSyncVehicles.isEmpty()) {
+                Log.d(TAG, "Attempting CSV Export fallback (?export=1)...")
+                outOfSyncVehicles = fetchAllViaCsvExport(cookies)
+            }
+
+            // Step 4: Fallback 2 - Parsing initial GET HTML
+            if (outOfSyncVehicles.isEmpty()) {
+                Log.d(TAG, "Parsing initial HTML fallback...")
+                outOfSyncVehicles = parseOutOfSyncVehicles(getHtml)
+            }
+
+            if (outOfSyncVehicles.isNotEmpty()) {
+                Log.w(TAG, "🚨 [OUT OF SYNC DETECTED] Found ${outOfSyncVehicles.size} Out-of-Sync Vehicle(s): $outOfSyncVehicles")
+                triggerAlarm(context, outOfSyncVehicles)
+            } else {
+                Log.i(TAG, "✅ [STATUS OK] All active vehicles are IN SYNC! No out-of-sync vehicle found.")
+            }
+
             Log.i(TAG, "==================================================")
             return Result.success()
 
@@ -144,23 +178,163 @@ class VehicleSyncWorker(
         }
     }
 
+    private fun fetchAll100EntriesViaAjax(cookies: String, csrfToken: String): List<String> {
+        val outOfSyncList = mutableListOf<String>()
+        try {
+            val postUrl = URL("https://punjab.rescue1122.org/dashboard/vehicle/diagnose/fetch")
+            val postConnection = (postUrl.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                setRequestProperty("Cookie", cookies)
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                setRequestProperty("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                setRequestProperty("X-Requested-With", "XMLHttpRequest")
+                connectTimeout = 15000
+                readTimeout = 15000
+            }
+
+            val postData = buildDataTablesPostParams(csrfToken, 100)
+            val os = postConnection.outputStream
+            os.write(postData.toByteArray(Charsets.UTF_8))
+            os.flush()
+            os.close()
+
+            val postResponseCode = postConnection.responseCode
+            Log.i(TAG, "📡 [AJAX POST RESPONSE] Status Code: $postResponseCode for 100 entries")
+
+            if (postResponseCode == HttpURLConnection.HTTP_OK) {
+                val reader = BufferedReader(InputStreamReader(postConnection.inputStream))
+                val jsonBuilder = StringBuilder()
+                var line: String?
+                while (reader.readLine().also { line = it } != null) {
+                    jsonBuilder.append(line).append("\n")
+                }
+                reader.close()
+
+                val jsonStr = jsonBuilder.toString()
+                val gson = Gson()
+                val jsonObject = gson.fromJson(jsonStr, JsonObject::class.java)
+
+                if (jsonObject != null && jsonObject.has("data")) {
+                    val dataArray = jsonObject.getAsJsonArray("data")
+                    Log.i(TAG, "📊 [DATA TABLE FULL SCAN] Total vehicle entries scanned from server: ${dataArray.size()} (Requested max: 100)")
+
+                    for (i in 0 until dataArray.size()) {
+                        val rowElement = dataArray.get(i)
+                        val rowString = rowElement.toString()
+
+                        if (rowString.contains("Staff App is out of sync", ignoreCase = true)) {
+                            var vehicleName = ""
+
+                            val doc = Jsoup.parse(rowString)
+                            val regSpan = doc.select("span[data-original-title=Registration Number]").first()
+                            if (regSpan != null) {
+                                vehicleName = regSpan.text().trim()
+                            }
+
+                            if (vehicleName.isEmpty()) {
+                                val regMatch = Regex("Registration Number[\"'][^>]*>([^<]+)<").find(rowString)
+                                if (regMatch != null) {
+                                    vehicleName = regMatch.groupValues[1].trim()
+                                }
+                            }
+
+                            if (vehicleName.isEmpty()) {
+                                vehicleName = "Vehicle#${i + 1}"
+                            }
+
+                            Log.w(TAG, "   ⚠️ Entry ${i + 1}: Vehicle [$vehicleName] -> STAFF APP IS OUT OF SYNC!")
+                            outOfSyncList.add(vehicleName)
+                        } else {
+                            Log.d(TAG, "   ✓ Entry ${i + 1} -> Normal")
+                        }
+                    }
+                }
+            }
+            postConnection.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching 100 entries via AJAX POST: ${e.message}")
+        }
+        return outOfSyncList.distinct()
+    }
+
+    private fun fetchAllViaCsvExport(cookies: String): List<String> {
+        val outOfSyncList = mutableListOf<String>()
+        try {
+            val csvUrl = URL("https://punjab.rescue1122.org/dashboard/vehicle/diagnose?export=1")
+            val connection = (csvUrl.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                setRequestProperty("Cookie", cookies)
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                connectTimeout = 15000
+                readTimeout = 15000
+                instanceFollowRedirects = true
+            }
+
+            val responseCode = connection.responseCode
+            Log.i(TAG, "📡 [CSV EXPORT FALLBACK] Status Code: $responseCode")
+
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                val reader = BufferedReader(InputStreamReader(connection.inputStream))
+                var line: String?
+                var rowCount = 0
+                while (reader.readLine().also { line = it } != null) {
+                    val csvLine = line ?: ""
+                    rowCount++
+                    if (csvLine.contains("Staff App is out of sync", ignoreCase = true)) {
+                        val parts = csvLine.split(",")
+                        val vehicleName = if (parts.size > 1) parts[1].trim().replace("\"", "") else "Vehicle#$rowCount"
+                        outOfSyncList.add(vehicleName)
+                        Log.w(TAG, "   ⚠️ [CSV EXPORT] Found Out-Of-Sync Vehicle: $vehicleName")
+                    }
+                }
+                reader.close()
+                Log.i(TAG, "📊 [CSV EXPORT FALLBACK] Total lines processed: $rowCount")
+            }
+            connection.disconnect()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching CSV export fallback: ${e.message}")
+        }
+        return outOfSyncList.distinct()
+    }
+
+    private fun buildDataTablesPostParams(csrfToken: String, length: Int): String {
+        val sb = StringBuilder()
+        sb.append("_token=").append(URLEncoder.encode(csrfToken, "UTF-8"))
+        sb.append("&draw=1")
+        sb.append("&start=0")
+        sb.append("&length=").append(length)
+        sb.append("&search%5Bvalue%5D=")
+        sb.append("&search%5Bregex%5D=false")
+        sb.append("&order%5B0%5D%5Bcolumn%5D=1")
+        sb.append("&order%5B0%5D%5Bdir%5D=asc")
+
+        for (i in 0..6) {
+            sb.append("&columns%5B").append(i).append("%5D%5Bdata%5D=").append(i)
+            sb.append("&columns%5B").append(i).append("%5D%5Bname%5D=")
+            sb.append("&columns%5B").append(i).append("%5D%5Bsearchable%5D=true")
+            sb.append("&columns%5B").append(i).append("%5D%5Borderable%5D=").append(if (i < 4) "true" else "false")
+            sb.append("&columns%5B").append(i).append("%5D%5Bsearch%5D%5Bvalue%5D=")
+            sb.append("&columns%5B").append(i).append("%5D%5Bsearch%5D%5Bregex%5D=false")
+        }
+        return sb.toString()
+    }
+
     private fun parseOutOfSyncVehicles(html: String): List<String> {
         val outOfSyncList = mutableListOf<String>()
         val doc = Jsoup.parse(html)
         val rows = doc.select("table#vehicle_table tbody tr")
 
-        Log.d(TAG, "📊 [PARSING] Scanning ${rows.size} vehicle rows from #vehicle_table...")
+        Log.d(TAG, "📊 [PARSING FALLBACK] Scanning ${rows.size} vehicle rows from #vehicle_table...")
 
         var rowIndex = 1
         for (row in rows) {
             val rowText = row.text()
             val rowHtml = row.html()
 
-            // Check if "Staff App is out of sync" is present in the row
             val isOutOfSync = rowText.contains("Staff App is out of sync", ignoreCase = true) ||
                     rowHtml.contains("Staff App is out of sync", ignoreCase = true)
 
-            // Extract Registration Number from span attribute
             var vehicleName = ""
             val regSpan = row.select("span[data-original-title=Registration Number]").first()
             if (regSpan != null) {
