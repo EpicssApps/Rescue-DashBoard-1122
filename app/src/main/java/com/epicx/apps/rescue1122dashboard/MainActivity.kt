@@ -1,16 +1,24 @@
 package com.epicx.apps.rescue1122dashboard
 
+import android.app.AlarmManager
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.Uri
+import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
@@ -77,6 +85,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
         }
+
+        createNotificationChannels()
+        checkAndRequestPermissions()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -214,5 +225,55 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 }
             }
             .show()
+    }
+
+    private fun createNotificationChannels() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            val timerChannel = NotificationChannel(
+                "vehicle_timer_channel_silent",
+                "Vehicle Countdown Updates",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Silent channel for live countdown ticks"
+                setSound(null, null)
+                enableVibration(false)
+            }
+            notificationManager.createNotificationChannel(timerChannel)
+
+            val alarmChannel = NotificationChannel(
+                "vehicle_alarm_channel_sound_v2",
+                "Vehicle Maintenance Alarm",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Alarm channel when vehicle maintenance timer finishes"
+                enableVibration(true)
+                setSound(null, null)
+            }
+            notificationManager.createNotificationChannel(alarmChannel)
+        }
+    }
+
+    private fun checkAndRequestPermissions() {
+        // Request Notification permission on Android 13+ (API 33+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
+
+        // Check Exact Alarm permission on Android 12+ (API 31+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            if (!alarmManager.canScheduleExactAlarms()) {
+                try {
+                    val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                } catch (_: Exception) {}
+            }
+        }
     }
 }

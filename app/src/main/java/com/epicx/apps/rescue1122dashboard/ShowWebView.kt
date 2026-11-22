@@ -2,7 +2,6 @@ package com.epicx.apps.rescue1122dashboard
 
 import android.annotation.SuppressLint
 import android.app.AlertDialog
-import android.app.AlarmManager
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
@@ -144,28 +143,6 @@ class ShowWebView : Fragment(R.layout.show_web_view){
         @JavascriptInterface
         fun onMinorMaintenanceSubmitted(vehicleName: String, reason: String) {
             Log.d("WebClientDebug", "Minor maintenance submitted intercepted for: $vehicleName, reason: $reason")
-
-            // Check and request notification permission on Android 13+ (API 33+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    if (context is android.app.Activity) {
-                        context.requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
-                    }
-                }
-            }
-
-            // Check exact alarm permission on Android 12+ (API 31+) for Vivo / Android 14+
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-                if (!alarmManager.canScheduleExactAlarms()) {
-                    try {
-                        val intent = Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
-                            data = Uri.parse("package:${context.packageName}")
-                        }
-                        context.startActivity(intent)
-                    } catch (_: Exception) {}
-                }
-            }
 
             Handler(Looper.getMainLooper()).post {
                 showTimeSelectionDialog(context, vehicleName, reason) { selectedMinutes ->
