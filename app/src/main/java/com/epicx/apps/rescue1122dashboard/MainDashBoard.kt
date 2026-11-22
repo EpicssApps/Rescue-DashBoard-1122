@@ -48,10 +48,15 @@ class MainDashBoard :Fragment() {
         SettingsFragment.userName = settingPreferences.getString("userName","")!!
         SettingsFragment.password = settingPreferences.getString("password","")!!
         isDesktopMode = settingPreferences.getBoolean("desktop_mode", false)
+        val isExclusionConfigured = settingPreferences.getBoolean("is_exclusion_configured", false)
 
-        if (SettingsFragment.userName!!.isEmpty()){
-            val direction = MainDashBoardDirections.actionMainDashBoardToSaveUserNamePassword()
-            findNavController().navigate(direction)
+        if (!isExclusionConfigured || SettingsFragment.userName!!.isEmpty()) {
+            (activity as? MainActivity)?.showExcludeVehiclesDialog {
+                if (SettingsFragment.userName!!.isEmpty()) {
+                    val direction = MainDashBoardDirections.actionMainDashBoardToSaveUserNamePassword()
+                    findNavController().navigate(direction)
+                }
+            }
         }
 
         webView!!.webViewClient = ShowWebView.MyWebViewClient(

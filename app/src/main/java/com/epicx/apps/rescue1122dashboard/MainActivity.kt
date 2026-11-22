@@ -106,7 +106,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 showExcludeVehiclesDialog()
                 return true
             }
-            R.id.test_sync_alarm -> {
+           /* R.id.test_sync_alarm -> {
                 val intent = Intent(this, VehicleAlarmReceiver::class.java).apply {
                     action = VehicleSyncWorker.ACTION_OUT_OF_SYNC_ALARM
                     putStringArrayListExtra(VehicleSyncWorker.EXTRA_OUT_OF_SYNC_VEHICLES, arrayListOf("TEST-VEHICLE-01"))
@@ -114,7 +114,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 sendBroadcast(intent)
                 android.widget.Toast.makeText(this, "Testing Alarm Sound...", android.widget.Toast.LENGTH_SHORT).show()
                 return true
-            }
+            }*/
             R.id.reset -> {
                 resetUserNamePassword()
                 return true
@@ -123,7 +123,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         return super.onOptionsItemSelected(item)
     }
 
-    private fun showExcludeVehiclesDialog() {
+    fun showExcludeVehiclesDialog(onSaved: (() -> Unit)? = null) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         val defaultExcluded = setOf("AIR_AMB", "GDV", "BOAT")
         val savedSet = prefs.getStringSet("excluded_vehicle_categories", defaultExcluded) ?: defaultExcluded
@@ -150,9 +150,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         cbAmbulances.isChecked = savedSet.contains("AMBULANCE")
         etCustom.setText(savedCustom)
 
-        MaterialAlertDialogBuilder(this, R.style.MaterialAlertDialog)
+        val builder = MaterialAlertDialogBuilder(this, R.style.MaterialAlertDialog)
             .setTitle("Exclude Vehicle Categories")
             .setView(dialogView)
+            .setCancelable(onSaved == null)
             .setPositiveButton("Save") { dialog, _ ->
                 val newSet = mutableSetOf<String>()
                 if (cbAirAmbulance.isChecked) newSet.add("AIR_AMB")
@@ -169,15 +170,22 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 prefs.edit()
                     .putStringSet("excluded_vehicle_categories", newSet)
                     .putString("custom_excluded_prefixes", customText)
+                    .putBoolean("is_exclusion_configured", true)
                     .apply()
 
                 android.widget.Toast.makeText(this, "Exclusion settings saved successfully!", android.widget.Toast.LENGTH_SHORT).show()
                 dialog.dismiss()
+
+                onSaved?.invoke()
             }
-            .setNegativeButton("Cancel") { dialog, _ ->
+
+        if (onSaved == null) {
+            builder.setNegativeButton("Cancel") { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
+        }
+
+        builder.show()
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -253,9 +261,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 editor.putString("userName", null)
                 editor.putString("password", null)
                 editor.putString("location", null)
+                editor.putBoolean("is_exclusion_configured", false)
                 editor.apply()
                 dialog.dismiss()
-                navController.navigate(R.id.saveUserNamePassword)
+                showExcludeVehiclesDialog {
+                    navController.navigate(R.id.saveUserNamePassword)
+                }
             }
             .show()
     }

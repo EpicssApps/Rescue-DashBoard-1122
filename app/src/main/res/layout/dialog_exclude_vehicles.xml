@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:padding="20dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -13,80 +13,106 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Select vehicle categories to IGNORE / EXCLUDE from Out-of-Sync monitoring:"
+            android:text="Vehicle Exclusion Filters"
+            android:textColor="?android:attr/textColorPrimary"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="2dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Select vehicle categories to ignore from out-of-sync alarms:"
             android:textColor="?android:attr/textColorSecondary"
-            android:textSize="14sp"
+            android:textSize="13sp"
             android:layout_marginBottom="12dp" />
 
-        <CheckBox
-            android:id="@+id/cb_air_ambulance"
+        <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🚁 Air Ambulances (AIR-AMB)"
-            android:textSize="15sp" />
+            android:layout_marginBottom="12dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp">
 
-        <CheckBox
-            android:id="@+id/cb_ambulances"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🚑 Ambulances (BNA-, AMB)"
-            android:textSize="15sp" />
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp">
 
-        <CheckBox
-            android:id="@+id/cb_bikes"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🏍️ Rescue Bikes (BNB-, BIKE)"
-            android:textSize="15sp" />
+                <CheckBox
+                    android:id="@+id/cb_ambulances"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🚑 Ambulances (BNA-, AMB)"
+                    android:textSize="14sp" />
 
-        <CheckBox
-            android:id="@+id/cb_firetrucks"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🚒 Firetrucks (BNF-, FIRE)"
-            android:textSize="15sp" />
+                <CheckBox
+                    android:id="@+id/cb_firetrucks"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🚒 Firetrucks (BNF-, FIRE)"
+                    android:textSize="14sp" />
 
-        <CheckBox
-            android:id="@+id/cb_gdv"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🚐 General Duty Vans (BNG-, GDV)"
-            android:textSize="15sp" />
+                <CheckBox
+                    android:id="@+id/cb_rescue_vehicles"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🛻 Rescue Vehicles (BNR-, RESCUE)"
+                    android:textSize="14sp" />
 
-        <CheckBox
-            android:id="@+id/cb_boats"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🚤 Rescue Boats (BWN-BT-, BOAT)"
-            android:textSize="15sp" />
+                <CheckBox
+                    android:id="@+id/cb_bikes"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🏍️ Rescue Bikes (BNB-, BIKE)"
+                    android:textSize="14sp" />
 
-        <CheckBox
-            android:id="@+id/cb_rescue_vehicles"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🛻 Rescue Vehicles (BNR-, RESCUE)"
-            android:textSize="15sp" />
+                <CheckBox
+                    android:id="@+id/cb_gdv"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🚐 General Duty Vans (BNG-, GDV)"
+                    android:textSize="14sp" />
 
-        <CheckBox
-            android:id="@+id/cb_specialized"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🚜 Specialized Vehicles (SPEC)"
-            android:textSize="15sp" />
+                <CheckBox
+                    android:id="@+id/cb_boats"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🚤 Rescue Boats (BWN-BT-, BOAT)"
+                    android:textSize="14sp" />
 
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:background="?android:attr/listDivider"
-            android:layout_marginTop="12dp"
-            android:layout_marginBottom="12dp" />
+                <CheckBox
+                    android:id="@+id/cb_air_ambulance"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🚁 Air Ambulances (AIR-AMB)"
+                    android:textSize="14sp" />
+
+                <CheckBox
+                    android:id="@+id/cb_specialized"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="2dp"
+                    android:text="🚜 Specialized Vehicles (SPEC)"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:hint="Custom Vehicle Prefixes (comma-separated)"
-            app:helperText="e.g. KLR-, ABC-01 (Matches any vehicle with this text)"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            app:helperText="e.g. KLR-, ABC-01">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/et_custom_prefixes"

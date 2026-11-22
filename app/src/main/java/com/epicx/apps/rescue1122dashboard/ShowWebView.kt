@@ -16,8 +16,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.ProgressBar
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -169,7 +169,7 @@ class ShowWebView : Fragment(R.layout.show_web_view){
         private fun showTimeSelectionDialog(context: Context, vehicleName: String, reason: String, onTimeSelected: (Int) -> Unit) {
             val dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_select_time, null)
             val tvVehicleInfo = dialogView.findViewById<TextView>(R.id.tvVehicleInfo)
-            val spinnerTime = dialogView.findViewById<Spinner>(R.id.spinnerTime)
+            val spinnerTime = dialogView.findViewById<AutoCompleteTextView>(R.id.spinnerTime)
 
             tvVehicleInfo.text = "Vehicle: $vehicleName\nReason: $reason"
 
@@ -182,9 +182,9 @@ class ShowWebView : Fragment(R.layout.show_web_view){
             )
             val timeValues = intArrayOf(0, 1, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
 
-            val adapter = ArrayAdapter(context, android.R.layout.simple_spinner_item, items)
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            spinnerTime.adapter = adapter
+            val adapter = ArrayAdapter(context, R.layout.dropdown_item, items)
+            spinnerTime.setAdapter(adapter)
+            spinnerTime.setText(items[0], false)
 
             val dialog = AlertDialog.Builder(context)
                 .setTitle("Minor Maintenance Timer")
@@ -196,8 +196,9 @@ class ShowWebView : Fragment(R.layout.show_web_view){
             dialog.setOnShowListener {
                 val button = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
                 button.setOnClickListener {
-                    val selectedPosition = spinnerTime.selectedItemPosition
-                    if (selectedPosition == 0) {
+                    val selectedText = spinnerTime.text.toString()
+                    val selectedPosition = items.indexOf(selectedText)
+                    if (selectedPosition <= 0) {
                         Toast.makeText(context, "Please select a valid timer duration!", Toast.LENGTH_SHORT).show()
                     } else {
                         val selectedMinutes = timeValues[selectedPosition]
