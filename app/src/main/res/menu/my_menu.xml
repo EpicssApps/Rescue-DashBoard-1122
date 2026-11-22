@@ -9,6 +9,12 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/exclude_vehicles"
+        android:icon="@android:drawable/ic_menu_preferences"
+        android:title="Exclude Vehicle Categories"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/test_sync_alarm"
         android:icon="@android:drawable/ic_lock_idle_alarm"
         android:title="Test Alarm Sound"

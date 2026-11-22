@@ -142,17 +142,22 @@ class VehicleSyncWorker(
 
             Log.d(TAG, "🔑 [CSRF TOKEN] Extracted _token: ${if (csrfToken.isNotEmpty()) csrfToken.take(8) + "..." else "EMPTY"}")
 
+            // Load user-configured vehicle exclusion preferences
+            val defaultExcluded = setOf("AIR_AMB", "GDV", "BOAT")
+            val excludedCategories = prefs.getStringSet("excluded_vehicle_categories", defaultExcluded) ?: defaultExcluded
+            val customPrefixesStr = prefs.getString("custom_excluded_prefixes", "") ?: ""
+
             var outOfSyncVehicles = emptyList<String>()
 
             // Step 2: AJAX POST for 100 entries with complete DataTables schema (Primary & most accurate method)
             if (csrfToken.isNotEmpty()) {
-                outOfSyncVehicles = fetchAll100EntriesViaAjax(cookies, csrfToken)
+                outOfSyncVehicles = fetchAll100EntriesViaAjax(cookies, csrfToken, excludedCategories, customPrefixesStr)
             }
 
             // Step 3: Fallback - Parsing initial GET HTML if AJAX failed
             if (outOfSyncVehicles.isEmpty() && getHtml.isNotEmpty()) {
                 Log.d(TAG, "Parsing initial HTML fallback...")
-                outOfSyncVehicles = parseOutOfSyncVehicles(getHtml)
+                outOfSyncVehicles = parseOutOfSyncVehicles(getHtml, excludedCategories, customPrefixesStr)
             }
 
             if (outOfSyncVehicles.isNotEmpty()) {
@@ -172,25 +177,45 @@ class VehicleSyncWorker(
         }
     }
 
-    private fun isExcludedVehicle(vehicleName: String): Boolean {
+    private fun isExcludedVehicle(
+        vehicleName: String,
+        excludedCategories: Set<String>,
+        customPrefixesStr: String
+    ): Boolean {
         val nameUpper = vehicleName.trim().uppercase()
 
-        // 1. Air Ambulance (AIR-AMB1, AIR-AMB, etc.)
-        if (nameUpper.contains("AIR-AMB")) {
-            return true
-        }
+        // 1. Check selected categories with District Codes & Category Keywords
+        if (excludedCategories.contains("AIR_AMB") && nameUpper.contains("AIR-AMB")) return true
+        if (excludedCategories.contains("AMBULANCE") && (nameUpper.contains("BNA-") || (nameUpper.contains("AMB") && !nameUpper.contains("AIR-AMB")))) return true
+        if (excludedCategories.contains("BIKE") && (nameUpper.contains("BNB-") || nameUpper.contains("BIKE") || nameUpper.contains("-BK") || nameUpper.contains("MB-"))) return true
+        if (excludedCategories.contains("FIRE") && (nameUpper.contains("BNF-") || nameUpper.contains("FIRE") || nameUpper.contains("-FT"))) return true
+        if (excludedCategories.contains("GDV") && (nameUpper.contains("BNG-") || nameUpper.contains("GDV") || nameUpper.contains("VAN"))) return true
+        if (excludedCategories.contains("BOAT") && (nameUpper.contains("BWN-BT") || nameUpper.contains("BOAT") || nameUpper.contains("-BT"))) return true
+        if (excludedCategories.contains("RESCUE") && (nameUpper.contains("BNR-") || nameUpper.contains("RESCUE") || nameUpper.contains("-RV"))) return true
+        if (excludedCategories.contains("SPECIALIZED") && (nameUpper.contains("SPEC") || nameUpper.contains("SPECIALIZED"))) return true
 
-        // 2. BNG General Duty Vans (BNG-01, BNG-1, etc.)
-        if (nameUpper.contains("BNG-")) {
-            return true
-        }
-
-        // 3. BWN-BT Rescue Boats (BWN-BT-01 to BWN-BT-13 or any BWN-BT)
-        if (nameUpper.contains("BWN-BT")) {
-            return true
+        // 2. Check custom user-entered prefixes
+        if (customPrefixesStr.isNotBlank()) {
+            val prefixes = customPrefixesStr.split(",").map { it.trim().uppercase() }.filter { it.isNotEmpty() }
+            for (prefix in prefixes) {
+                if (nameUpper.contains(prefix)) {
+                    return true
+                }
+            }
         }
 
         return false
+    }
+
+    private fun isBusyMaintenanceOrOffDuty(rowContent: String): Boolean {
+        return rowContent.contains("Attendance is not marked", ignoreCase = true) ||
+                rowContent.contains("No Rescuer Associated", ignoreCase = true) ||
+                rowContent.contains("Vehicle status is On Emergency", ignoreCase = true) ||
+                rowContent.contains("On Emergency", ignoreCase = true) ||
+                rowContent.contains("Vehicle status is Maintenance", ignoreCase = true) ||
+                rowContent.contains("Maintenance", ignoreCase = true) ||
+                rowContent.contains("Vehicle status is On Protocol", ignoreCase = true) ||
+                rowContent.contains("On Protocol", ignoreCase = true)
     }
 
     private fun extractCleanVehicleName(col1Html: String, fallbackIndex: Int): String {
@@ -227,7 +252,12 @@ class VehicleSyncWorker(
         return "Vehicle#$fallbackIndex"
     }
 
-    private fun fetchAll100EntriesViaAjax(cookies: String, csrfToken: String): List<String> {
+    private fun fetchAll100EntriesViaAjax(
+        cookies: String,
+        csrfToken: String,
+        excludedCategories: Set<String>,
+        customPrefixesStr: String
+    ): List<String> {
         val outOfSyncList = mutableListOf<String>()
         try {
             val postUrl = URL("https://punjab.rescue1122.org/dashboard/vehicle/diagnose/fetch")
@@ -286,20 +316,23 @@ class VehicleSyncWorker(
                             vehicleName = "Vehicle#${i + 1}"
                         }
 
-                        // 1. Must have "Staff App is out of sync"
+                        // 1. Check if vehicle is excluded by user settings (skip completely if excluded)
+                        if (isExcludedVehicle(vehicleName, excludedCategories, customPrefixesStr)) {
+                            Log.i(TAG, "   ⏭️ Entry ${i + 1}: Vehicle [$vehicleName] -> EXCLUDED BY USER")
+                            continue
+                        }
+
+                        // 2. Must have "Staff App is out of sync"
                         val isStaffAppOutOfSync = fullRowText.contains("Staff App is out of sync", ignoreCase = true)
 
-                        // 2. Must NOT have "Attendance is not marked" or "No Rescuer Associated" (off-duty shifts)
-                        val isOffDutyOrUnmarked = fullRowText.contains("Attendance is not marked", ignoreCase = true) ||
-                                fullRowText.contains("No Rescuer Associated", ignoreCase = true)
+                        // 3. Must NOT be On Emergency, Maintenance, Protocol, or Off-duty (unmarked attendance/no rescuer)
+                        val isIgnoredState = isBusyMaintenanceOrOffDuty(fullRowText)
 
                         if (isStaffAppOutOfSync) {
-                            if (isExcludedVehicle(vehicleName)) {
-                                Log.i(TAG, "   ⏭️ Entry ${i + 1}: Vehicle [$vehicleName] -> OUT OF SYNC BUT EXCLUDED (Non-Emergency Vehicle)")
-                            } else if (isOffDutyOrUnmarked) {
-                                Log.i(TAG, "   ⏭️ Entry ${i + 1}: Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (Off-duty: Attendance is not marked / No Rescuer)")
+                            if (isIgnoredState) {
+                                Log.i(TAG, "   ⏭️ Entry ${i + 1}: Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (On Emergency / Maintenance / Off-duty)")
                             } else {
-                                Log.w(TAG, "   ⚠️ Entry ${i + 1}: Vehicle [$vehicleName] -> REAL OUT OF SYNC! (Staff on Duty & App Out of Sync)")
+                                Log.w(TAG, "   ⚠️ Entry ${i + 1}: Vehicle [$vehicleName] -> REAL OUT OF SYNC! (Idle & Staff on Duty & App Out of Sync)")
                                 outOfSyncList.add(vehicleName)
                             }
                         } else {
@@ -337,7 +370,11 @@ class VehicleSyncWorker(
         return sb.toString()
     }
 
-    private fun parseOutOfSyncVehicles(html: String): List<String> {
+    private fun parseOutOfSyncVehicles(
+        html: String,
+        excludedCategories: Set<String>,
+        customPrefixesStr: String
+    ): List<String> {
         val outOfSyncList = mutableListOf<String>()
         val doc = Jsoup.parse(html)
         val rows = doc.select("table#vehicle_table tbody tr")
@@ -360,19 +397,20 @@ class VehicleSyncWorker(
             val rowText = row.text()
             val rowHtml = row.html()
 
+            if (isExcludedVehicle(vehicleName, excludedCategories, customPrefixesStr)) {
+                Log.i(TAG, "   ⏭️ Row $rowIndex: Vehicle [$vehicleName] -> EXCLUDED BY USER")
+                rowIndex++
+                continue
+            }
+
             val isStaffAppOutOfSync = rowText.contains("Staff App is out of sync", ignoreCase = true) ||
                     rowHtml.contains("Staff App is out of sync", ignoreCase = true)
 
-            val isOffDutyOrUnmarked = rowText.contains("Attendance is not marked", ignoreCase = true) ||
-                    rowHtml.contains("Attendance is not marked", ignoreCase = true) ||
-                    rowText.contains("No Rescuer Associated", ignoreCase = true) ||
-                    rowHtml.contains("No Rescuer Associated", ignoreCase = true)
+            val isIgnoredState = isBusyMaintenanceOrOffDuty(rowText) || isBusyMaintenanceOrOffDuty(rowHtml)
 
             if (isStaffAppOutOfSync) {
-                if (isExcludedVehicle(vehicleName)) {
-                    Log.i(TAG, "   ⏭️ Row $rowIndex: Vehicle [$vehicleName] -> OUT OF SYNC BUT EXCLUDED")
-                } else if (isOffDutyOrUnmarked) {
-                    Log.i(TAG, "   ⏭️ Row $rowIndex: Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (Off-duty: Attendance is not marked / No Rescuer)")
+                if (isIgnoredState) {
+                    Log.i(TAG, "   ⏭️ Row $rowIndex: Vehicle [$vehicleName] -> OUT OF SYNC BUT IGNORED (On Emergency / Maintenance / Off-duty)")
                 } else {
                     Log.w(TAG, "   ⚠️ Row $rowIndex: Vehicle [$vehicleName] -> REAL OUT OF SYNC!")
                     outOfSyncList.add(vehicleName)

@@ -102,6 +102,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 android.widget.Toast.makeText(this, "Checking for Out-of-Sync Vehicles...", android.widget.Toast.LENGTH_SHORT).show()
                 return true
             }
+            R.id.exclude_vehicles -> {
+                showExcludeVehiclesDialog()
+                return true
+            }
             R.id.test_sync_alarm -> {
                 val intent = Intent(this, VehicleAlarmReceiver::class.java).apply {
                     action = VehicleSyncWorker.ACTION_OUT_OF_SYNC_ALARM
@@ -117,6 +121,63 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun showExcludeVehiclesDialog() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(this)
+        val defaultExcluded = setOf("AIR_AMB", "GDV", "BOAT")
+        val savedSet = prefs.getStringSet("excluded_vehicle_categories", defaultExcluded) ?: defaultExcluded
+        val savedCustom = prefs.getString("custom_excluded_prefixes", "") ?: ""
+
+        val dialogView = layoutInflater.inflate(R.layout.dialog_exclude_vehicles, null)
+        val cbAirAmbulance = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_air_ambulance)
+        val cbGdv = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_gdv)
+        val cbBoats = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_boats)
+        val cbBikes = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_bikes)
+        val cbFiretrucks = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_firetrucks)
+        val cbRescueVehicles = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_rescue_vehicles)
+        val cbSpecialized = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_specialized)
+        val cbAmbulances = dialogView.findViewById<android.widget.CheckBox>(R.id.cb_ambulances)
+        val etCustom = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(R.id.et_custom_prefixes)
+
+        cbAirAmbulance.isChecked = savedSet.contains("AIR_AMB")
+        cbGdv.isChecked = savedSet.contains("GDV")
+        cbBoats.isChecked = savedSet.contains("BOAT")
+        cbBikes.isChecked = savedSet.contains("BIKE")
+        cbFiretrucks.isChecked = savedSet.contains("FIRE")
+        cbRescueVehicles.isChecked = savedSet.contains("RESCUE")
+        cbSpecialized.isChecked = savedSet.contains("SPECIALIZED")
+        cbAmbulances.isChecked = savedSet.contains("AMBULANCE")
+        etCustom.setText(savedCustom)
+
+        MaterialAlertDialogBuilder(this, R.style.MaterialAlertDialog)
+            .setTitle("Exclude Vehicle Categories")
+            .setView(dialogView)
+            .setPositiveButton("Save") { dialog, _ ->
+                val newSet = mutableSetOf<String>()
+                if (cbAirAmbulance.isChecked) newSet.add("AIR_AMB")
+                if (cbGdv.isChecked) newSet.add("GDV")
+                if (cbBoats.isChecked) newSet.add("BOAT")
+                if (cbBikes.isChecked) newSet.add("BIKE")
+                if (cbFiretrucks.isChecked) newSet.add("FIRE")
+                if (cbRescueVehicles.isChecked) newSet.add("RESCUE")
+                if (cbSpecialized.isChecked) newSet.add("SPECIALIZED")
+                if (cbAmbulances.isChecked) newSet.add("AMBULANCE")
+
+                val customText = etCustom.text?.toString()?.trim() ?: ""
+
+                prefs.edit()
+                    .putStringSet("excluded_vehicle_categories", newSet)
+                    .putString("custom_excluded_prefixes", customText)
+                    .apply()
+
+                android.widget.Toast.makeText(this, "Exclusion settings saved successfully!", android.widget.Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
     }
 
     override fun onSupportNavigateUp(): Boolean {
