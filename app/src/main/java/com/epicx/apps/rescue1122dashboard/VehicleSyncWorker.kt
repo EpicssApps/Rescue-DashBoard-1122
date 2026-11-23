@@ -70,8 +70,11 @@ class VehicleSyncWorker(
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .build()
 
+            val inputData = workDataOf("is_manual_sync" to true)
+
             val syncRequest = OneTimeWorkRequestBuilder<VehicleSyncWorker>()
                 .setConstraints(constraints)
+                .setInputData(inputData)
                 .build()
 
             WorkManager.getInstance(context).enqueue(syncRequest)
@@ -80,8 +83,9 @@ class VehicleSyncWorker(
     }
 
     override suspend fun doWork(): Result {
+        val isManualSync = inputData.getBoolean("is_manual_sync", false)
         Log.i(TAG, "==================================================")
-        Log.i(TAG, "🔍 [WORKMANAGER SYNC START] Checking out-of-sync vehicles (Scanning up to 100 entries)...")
+        Log.i(TAG, "🔍 [WORKMANAGER SYNC START] Checking out-of-sync vehicles (isManualSync=$isManualSync, Scanning up to 100 entries)...")
         val prefs = PreferenceManager.getDefaultSharedPreferences(context)
         val cookies = prefs.getString("session_cookies", "") ?: ""
 
@@ -175,6 +179,9 @@ class VehicleSyncWorker(
                 triggerAlarm(context, outOfSyncVehicles)
             } else {
                 Log.i(TAG, "✅ [STATUS OK] All active on-duty emergency vehicles are IN SYNC! No action required.")
+                if (isManualSync) {
+                    showAllVehiclesInSyncNotification(context)
+                }
             }
 
             Log.i(TAG, "==================================================")
@@ -462,5 +469,27 @@ class VehicleSyncWorker(
             .build()
 
         notificationManager.notify(7777, notification)
+    }
+
+    private fun showAllVehiclesInSyncNotification(context: Context) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingFlags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        val pendingIntent = android.app.PendingIntent.getActivity(context, 0, intent, pendingFlags)
+
+        val notification = androidx.core.app.NotificationCompat.Builder(context, "vehicle_alarm_channel_sound_v2")
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("✅ VEHICLES SYNC STATUS: ALL OK")
+            .setContentText("All active on-duty emergency vehicles are IN SYNC!")
+            .setContentIntent(pendingIntent)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(androidx.core.app.NotificationCompat.DEFAULT_ALL)
+            .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
+            .setAutoCancel(true)
+            .build()
+
+        notificationManager.notify(8888, notification)
     }
 }
