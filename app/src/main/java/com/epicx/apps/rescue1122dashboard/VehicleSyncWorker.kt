@@ -86,7 +86,8 @@ class VehicleSyncWorker(
         val cookies = prefs.getString("session_cookies", "") ?: ""
 
         if (cookies.isEmpty()) {
-            Log.w(TAG, "⚠️ [COOKIE MISSING] No session cookies found in SharedPreferences! User must log in via WebView first.")
+            Log.w(TAG, "⚠️ [COOKIE MISSING] No session cookies found in SharedPreferences! Showing notification to re-login.")
+            showSessionExpiredNotification(context)
             Log.i(TAG, "==================================================")
             return Result.success()
         }
@@ -129,6 +130,15 @@ class VehicleSyncWorker(
             getConnection.disconnect()
 
             val getHtml = htmlBuilder.toString()
+
+            if (getConnection.url.toString().contains("/login", ignoreCase = true) ||
+                getHtml.contains("action=\"https://punjab.rescue1122.org/login\"", ignoreCase = true) ||
+                (getHtml.contains("login", ignoreCase = true) && getHtml.contains("captcha", ignoreCase = true))
+            ) {
+                Log.e(TAG, "❌ [AUTH ERROR] Redirected to login page. Session expired. Showing notification to re-login.")
+                showSessionExpiredNotification(context)
+                return Result.success()
+            }
 
             // Extract CSRF Token from HTML page
             val doc = Jsoup.parse(getHtml)
@@ -440,11 +450,14 @@ class VehicleSyncWorker(
         val pendingFlags = android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = android.app.PendingIntent.getActivity(context, 0, intent, pendingFlags)
 
-        val notification = androidx.core.app.NotificationCompat.Builder(context, "vehicle_timer_channel_silent")
+        val notification = androidx.core.app.NotificationCompat.Builder(context, "vehicle_alarm_channel_sound_v2")
             .setSmallIcon(android.R.drawable.ic_dialog_alert)
             .setContentTitle("⚠️ Rescue 1122 Session Expired")
             .setContentText("Your web session expired. Tap here to re-login.")
             .setContentIntent(pendingIntent)
+            .setPriority(androidx.core.app.NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(androidx.core.app.NotificationCompat.DEFAULT_ALL)
+            .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             .build()
 

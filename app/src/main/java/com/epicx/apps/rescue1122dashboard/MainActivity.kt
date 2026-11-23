@@ -285,7 +285,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     private fun aboutUs() {
 
         MaterialAlertDialogBuilder(this,R.style.MaterialAlertDialog)
-            .setIcon(R.drawable.company_logo_t)
+            .setIcon(R.drawable.logo)
             .setTitle(resources.getString(R.string.companyName))
             .setMessage(resources.getString(R.string.aboutUS))
             .setPositiveButton(resources.getString(android.R.string.ok)) { dialog, _ ->
