@@ -69,7 +69,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
                 "Rescue1122:OutOfSyncAlarmWakeLock"
             )
-            wakeLock.acquire(30000L)
+            wakeLock.acquire(60000L)
         } catch (e: Exception) {
             Log.e(TAG, "WakeLock error: ${e.message}")
         }
@@ -117,7 +117,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
                 "Rescue1122:VehicleAlarmWakeLock"
             )
-            wakeLock.acquire(30000L)
+            wakeLock.acquire(60000L)
         } catch (e: Exception) {
             Log.e(TAG, "WakeLock error: ${e.message}")
         }
@@ -181,7 +181,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
 
             android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
                 stopAlarmSound()
-            }, 30000)
+            }, 60000)
         } catch (e: Exception) {
             Log.e(TAG, "VehicleAlarmReceiver playAlarm error: ${e.message}")
         }
