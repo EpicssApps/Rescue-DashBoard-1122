@@ -105,14 +105,17 @@ class VehicleSyncWorker(
                 setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 12; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
                 connectTimeout = 15000
                 readTimeout = 15000
-                instanceFollowRedirects = true
+                instanceFollowRedirects = false
             }
 
             val responseCode = getConnection.responseCode
-            Log.i(TAG, "📡 [HTTP GET RESPONSE] Status Code: $responseCode")
+            val locationHeader = getConnection.getHeaderField("Location") ?: ""
+            Log.i(TAG, "📡 [HTTP GET RESPONSE] Status Code: $responseCode, Location: $locationHeader")
 
-            if (responseCode == 401 || responseCode == 419) {
-                Log.e(TAG, "❌ [AUTH ERROR] Session expired ($responseCode). Showing notification to re-login.")
+            if (responseCode == 401 || responseCode == 419 ||
+                ((responseCode in 300..399) && locationHeader.contains("login", ignoreCase = true))
+            ) {
+                Log.e(TAG, "❌ [AUTH ERROR] Session expired ($responseCode, Redirect Location: $locationHeader). Showing notification to re-login.")
                 showSessionExpiredNotification(context)
                 getConnection.disconnect()
                 return Result.success()
@@ -135,11 +138,13 @@ class VehicleSyncWorker(
 
             val getHtml = htmlBuilder.toString()
 
-            if (getConnection.url.toString().contains("/login", ignoreCase = true) ||
-                getHtml.contains("action=\"https://punjab.rescue1122.org/login\"", ignoreCase = true) ||
-                (getHtml.contains("login", ignoreCase = true) && getHtml.contains("captcha", ignoreCase = true))
-            ) {
-                Log.e(TAG, "❌ [AUTH ERROR] Redirected to login page. Session expired. Showing notification to re-login.")
+            val isLoginPageHtml = getHtml.contains("action=\"/login\"", ignoreCase = true) ||
+                    getHtml.contains("action=\"https://punjab.rescue1122.org/login\"", ignoreCase = true) ||
+                    getHtml.contains("name=\"password\"", ignoreCase = true) ||
+                    getHtml.contains("type=\"password\"", ignoreCase = true)
+
+            if (isLoginPageHtml) {
+                Log.e(TAG, "❌ [AUTH ERROR] Login page form detected. Session expired. Showing notification to re-login.")
                 showSessionExpiredNotification(context)
                 return Result.success()
             }

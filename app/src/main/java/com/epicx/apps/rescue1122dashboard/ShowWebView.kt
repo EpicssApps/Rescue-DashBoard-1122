@@ -232,14 +232,23 @@ class ShowWebView : Fragment(R.layout.show_web_view){
             // Save session cookies for background Out-Of-Sync worker
             if (url != null) {
                 try {
-                    val cookies = android.webkit.CookieManager.getInstance().getCookie(url)
-                    if (!cookies.isNullOrEmpty()) {
+                    if (url.contains("/login", ignoreCase = true)) {
+                        // Clear saved session cookies when user is on login page
                         PreferenceManager.getDefaultSharedPreferences(context)
                             .edit()
-                            .putString("session_cookies", cookies)
+                            .remove("session_cookies")
                             .apply()
-                        Log.i("Rescue1122Sync", "🔑 [COOKIE CAPTURED] Session cookies saved from URL: $url")
-                        VehicleSyncWorker.schedulePeriodicSync(context)
+                        Log.w("Rescue1122Sync", "⚠️ [LOGIN PAGE] Session cookies cleared because user is on login page.")
+                    } else {
+                        val cookies = android.webkit.CookieManager.getInstance().getCookie(url)
+                        if (!cookies.isNullOrEmpty()) {
+                            PreferenceManager.getDefaultSharedPreferences(context)
+                                .edit()
+                                .putString("session_cookies", cookies)
+                                .apply()
+                            Log.i("Rescue1122Sync", "🔑 [COOKIE CAPTURED] Session cookies saved from URL: $url")
+                            VehicleSyncWorker.schedulePeriodicSync(context)
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e("Rescue1122Sync", "❌ Error saving cookies or scheduling sync: ${e.message}")
