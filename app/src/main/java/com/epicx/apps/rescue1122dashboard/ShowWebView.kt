@@ -141,8 +141,8 @@ class ShowWebView : Fragment(R.layout.show_web_view){
         }
 
         @JavascriptInterface
-        fun onMinorMaintenanceSubmitted(vehicleName: String, reason: String) {
-            Log.d("WebClientDebug", "Minor maintenance submitted intercepted for: $vehicleName, reason: $reason")
+        fun onMinorMaintenanceSubmitted(vehicleName: String, reason: String, vehicleId: String = "") {
+            Log.i("VehicleTimerDebug", "👉 [STEP 1: INTERCEPT SUCCESS] Minor maintenance intercepted -> Vehicle: '$vehicleName', VehicleID: '$vehicleId', Reason: '$reason'")
 
             Handler(Looper.getMainLooper()).post {
                 showTimeSelectionDialog(context, vehicleName, reason) { selectedMinutes ->
@@ -161,7 +161,7 @@ class ShowWebView : Fragment(R.layout.show_web_view){
                         """.trimIndent()
                         webView.evaluateJavascript(js, null)
                     }
-                    VehicleTimerManager.startTimer(context, vehicleName, reason, selectedMinutes)
+                    VehicleTimerManager.startTimer(context, vehicleName, reason, selectedMinutes, vehicleId)
                 }
             }
         }
@@ -290,9 +290,29 @@ class ShowWebView : Fragment(R.layout.show_web_view){
                                         reasonText = opt.getAttribute('data-title') || opt.text || 'Minor Maintenance';
                                     }
                                     
+                                    var vId = '';
+                                    if (window.location.href) {
+                                        var mHref = window.location.href.match(/\/vehicle\/(\d+)/);
+                                        if (mHref && mHref[1]) { vId = mHref[1]; }
+                                    }
+                                    if (!vId) {
+                                        var formEl = document.getElementById('vehicle_form') || document.querySelector('form');
+                                        if (formEl && formEl.action) {
+                                            var mForm = formEl.action.match(/\/vehicle\/(\d+)/);
+                                            if (mForm && mForm[1]) { vId = mForm[1]; }
+                                        }
+                                    }
+                                    if (!vId) {
+                                        var parts = window.location.pathname.split('/');
+                                        for (var i = 0; i < parts.length; i++) {
+                                            var p = parts[i].trim();
+                                            if (p.length > 0 && /^\d+$/.test(p)) { vId = p; break; }
+                                        }
+                                    }
+                                    
                                     if (window.AndroidBridge) {
-                                        window.AndroidBridge.logMessage("Intercepted submit click for minor maintenance vehicle: " + vehicleName);
-                                        window.AndroidBridge.onMinorMaintenanceSubmitted(vehicleName, reasonText);
+                                        window.AndroidBridge.logMessage("Intercepted submit click for minor maintenance vehicle: " + vehicleName + ", id: " + vId);
+                                        window.AndroidBridge.onMinorMaintenanceSubmitted(vehicleName, reasonText, vId);
                                     }
                                 }
                             }

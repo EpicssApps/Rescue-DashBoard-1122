@@ -32,12 +32,13 @@ class VehicleTimerService : Service() {
             activeTimers.remove(vehicleName)
         }
 
-        fun startTimer(context: Context, vehicleName: String, reason: String, minutes: Int) {
+        fun startTimer(context: Context, vehicleName: String, reason: String, minutes: Int, vehicleId: String = "") {
             val intent = Intent(context, VehicleTimerService::class.java).apply {
                 action = "START_TIMER"
                 putExtra("vehicleName", vehicleName)
                 putExtra("reason", reason)
                 putExtra("minutes", minutes)
+                putExtra("vehicleId", vehicleId)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -69,12 +70,13 @@ class VehicleTimerService : Service() {
         } else if (action == "START_TIMER") {
             val reason = intent.getStringExtra("reason") ?: "Maintenance"
             val minutes = intent.getIntExtra("minutes", 10)
+            val vehicleId = intent.getStringExtra("vehicleId") ?: ""
 
             val notificationId = vehicleName.hashCode()
             val durationMillis = minutes * 60 * 1000L
             val targetTimeWallClock = System.currentTimeMillis() + durationMillis
 
-            val initialNotification = buildNativeChronometerNotification(vehicleName, reason, targetTimeWallClock)
+            val initialNotification = buildNativeChronometerNotification(vehicleName, reason, targetTimeWallClock, vehicleId)
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -86,14 +88,14 @@ class VehicleTimerService : Service() {
                 Log.e(TAG, "startForeground error: ${e.message}")
             }
 
-            startVehicleTimer(vehicleName, reason, minutes)
+            startVehicleTimer(vehicleName, reason, minutes, vehicleId)
         }
 
         return START_STICKY
     }
 
-    private fun startVehicleTimer(vehicleName: String, reason: String, minutes: Int) {
-        Log.d(TAG, "ForegroundService startVehicleTimer: $vehicleName, reason: $reason, minutes: $minutes")
+    private fun startVehicleTimer(vehicleName: String, reason: String, minutes: Int, vehicleId: String = "") {
+        Log.i(TAG, "👉 [STEP 2: SERVICE TIMER STARTED] Vehicle: '$vehicleName', VehicleID: '$vehicleId', Reason: '$reason', Duration: $minutes min(s)")
 
         val notificationId = vehicleName.hashCode()
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -104,7 +106,7 @@ class VehicleTimerService : Service() {
         val endRealtime = SystemClock.elapsedRealtime() + durationMillis
 
         // 1. Post native Chronometer Countdown notification (SystemUI ticks natively, NEVER freezes!)
-        val notification = buildNativeChronometerNotification(vehicleName, reason, targetTimeWallClock)
+        val notification = buildNativeChronometerNotification(vehicleName, reason, targetTimeWallClock, vehicleId)
         notificationManager.notify(notificationId, notification)
 
         activeTimers[vehicleName] = endRealtime
@@ -115,6 +117,7 @@ class VehicleTimerService : Service() {
             action = "COM.EPICX.RESCUE.ALARM_${vehicleName.hashCode()}"
             putExtra("vehicleName", vehicleName)
             putExtra("reason", reason)
+            putExtra("vehicleId", vehicleId)
         }
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = PendingIntent.getBroadcast(this, notificationId, alarmIntent, pendingFlags)
@@ -164,7 +167,20 @@ class VehicleTimerService : Service() {
         }
     }
 
-    private fun buildNativeChronometerNotification(vehicleName: String, reason: String, targetTimeWallClock: Long): Notification {
+    private fun buildNativeChronometerNotification(vehicleName: String, reason: String, targetTimeWallClock: Long, vehicleId: String = ""): Notification {
+        val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val forceMakeActiveIntent = Intent(this, VehicleAlarmReceiver::class.java).apply {
+            action = VehicleAlarmReceiver.ACTION_FORCE_MAKE_ACTIVE
+            putExtra("vehicleName", vehicleName)
+            putExtra("vehicleId", vehicleId)
+        }
+        val forceMakeActivePendingIntent = PendingIntent.getBroadcast(
+            this,
+            vehicleName.hashCode() + 5000,
+            forceMakeActiveIntent,
+            pendingFlags
+        )
+
         return NotificationCompat.Builder(this, TIMER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle("Minor Maintenance: $vehicleName")
@@ -175,6 +191,7 @@ class VehicleTimerService : Service() {
             .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setSound(null)
+            .addAction(android.R.drawable.ic_menu_save, "🟢 Force Active/idle", forceMakeActivePendingIntent)
             .build()
     }
 
