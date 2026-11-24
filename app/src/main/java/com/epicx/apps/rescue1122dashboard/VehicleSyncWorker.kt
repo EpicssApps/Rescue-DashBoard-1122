@@ -65,6 +65,15 @@ class VehicleSyncWorker(
             }
         }
 
+        fun cancelPeriodicSync(context: Context) {
+            try {
+                WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+                Log.i(TAG, "🛑 [BACKGROUND WORKER] Periodic 15-minute VehicleSyncWorker CANCELLED.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error cancelling WorkManager: ${e.message}")
+            }
+        }
+
         fun triggerOneTimeSync(context: Context) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -90,8 +99,8 @@ class VehicleSyncWorker(
         val cookies = prefs.getString("session_cookies", "") ?: ""
 
         if (cookies.isEmpty()) {
-            Log.w(TAG, "⚠️ [COOKIE MISSING] No session cookies found in SharedPreferences! Showing notification to re-login.")
-            showSessionExpiredNotification(context)
+            Log.w(TAG, "⚠️ [COOKIE MISSING] No session cookies found in SharedPreferences. Cancelling background sync until user logs in.")
+            cancelPeriodicSync(context)
             Log.i(TAG, "==================================================")
             return Result.success()
         }
@@ -455,6 +464,18 @@ class VehicleSyncWorker(
     }
 
     private fun showSessionExpiredNotification(context: Context) {
+        // Clear session cookies & cancel background worker so notification is shown ONCE per session expiry and won't run while logged out
+        try {
+            PreferenceManager.getDefaultSharedPreferences(context)
+                .edit()
+                .remove("session_cookies")
+                .apply()
+            Log.i(TAG, "🔑 [SESSION EXPIRED] Cleared session_cookies from SharedPreferences.")
+            cancelPeriodicSync(context)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing session cookies or cancelling worker: ${e.message}")
+        }
+
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

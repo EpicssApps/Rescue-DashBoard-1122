@@ -262,7 +262,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 editor.putString("password", null)
                 editor.putString("location", null)
                 editor.putBoolean("is_exclusion_configured", false)
+                editor.remove("session_cookies")
                 editor.apply()
+                VehicleSyncWorker.cancelPeriodicSync(this)
                 dialog.dismiss()
                 showExcludeVehiclesDialog {
                     navController.navigate(R.id.saveUserNamePassword)

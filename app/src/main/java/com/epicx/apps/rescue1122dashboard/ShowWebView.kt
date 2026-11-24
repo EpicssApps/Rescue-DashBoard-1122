@@ -233,12 +233,13 @@ class ShowWebView : Fragment(R.layout.show_web_view){
             if (url != null) {
                 try {
                     if (url.contains("/login", ignoreCase = true)) {
-                        // Clear saved session cookies when user is on login page
+                        // Clear saved session cookies & stop background worker when user is on login page
                         PreferenceManager.getDefaultSharedPreferences(context)
                             .edit()
                             .remove("session_cookies")
                             .apply()
-                        Log.w("Rescue1122Sync", "⚠️ [LOGIN PAGE] Session cookies cleared because user is on login page.")
+                        VehicleSyncWorker.cancelPeriodicSync(context)
+                        Log.w("Rescue1122Sync", "⚠️ [LOGIN PAGE] Session cookies cleared & background worker stopped because user is on login page.")
                     } else {
                         val cookies = android.webkit.CookieManager.getInstance().getCookie(url)
                         if (!cookies.isNullOrEmpty()) {
