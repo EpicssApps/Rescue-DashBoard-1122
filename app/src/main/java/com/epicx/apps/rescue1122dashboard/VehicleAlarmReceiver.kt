@@ -56,7 +56,11 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         if (action == ACTION_FORCE_MAKE_ACTIVE || action == ACTION_MAKE_ACTIVE) {
             val vehicleName = intent.getStringExtra("vehicleName") ?: "Vehicle"
             val vehicleId = intent.getStringExtra("vehicleId") ?: ""
-            Log.i(TAG, "👉 [USER ACTION] User requested MAKE ACTIVE / IDLE for vehicle: $vehicleName (ID: $vehicleId)")
+            val startTimeMillis = intent.getLongExtra("startTimeMillis", System.currentTimeMillis())
+            val elapsedMillis = Math.max(0L, System.currentTimeMillis() - startTimeMillis)
+            val elapsedMinutes = Math.max(1, (elapsedMillis / 60000L).toInt())
+
+            Log.i(TAG, "👉 [USER ACTION] User requested MAKE ACTIVE / IDLE for vehicle: $vehicleName (ID: $vehicleId, Total Elapsed: $elapsedMinutes mins)")
 
             stopAlarmSound()
 
@@ -67,7 +71,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
             notificationManager.cancel(vehicleName.hashCode() + 1000)
 
             if (vehicleId.isNotBlank()) {
-                resetVehicleStatusToIdleOnServer(context, vehicleId, vehicleName)
+                resetVehicleStatusToIdleOnServer(context, vehicleId, vehicleName, elapsedMinutes)
             } else {
                 Log.w(TAG, "⚠️ Cannot reset vehicle status to IDLE: vehicleId is empty.")
                 android.widget.Toast.makeText(context, "Cannot reset $vehicleName: Vehicle ID missing!", android.widget.Toast.LENGTH_SHORT).show()
@@ -79,16 +83,20 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
             val vehicleName = intent.getStringExtra("vehicleName") ?: "Vehicle"
             val vehicleId = intent.getStringExtra("vehicleId") ?: ""
             val reason = intent.getStringExtra("reason") ?: "Maintenance"
-            Log.i(TAG, "👉 [USER ACTION] User requested EXTEND 10 MINS for vehicle: $vehicleName (ID: $vehicleId)")
+            val startTimeMillis = intent.getLongExtra("startTimeMillis", System.currentTimeMillis())
+            val accumulatedMinutes = intent.getIntExtra("accumulatedMinutes", 10)
+            val newAccumulatedMinutes = accumulatedMinutes + 10
+
+            Log.i(TAG, "👉 [USER ACTION] User requested EXTEND 10 MINS for vehicle: $vehicleName (ID: $vehicleId, NewAccumulated: $newAccumulatedMinutes mins)")
 
             stopAlarmSound()
 
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(vehicleName.hashCode() + 1000)
 
-            // Start new 10-minute timer
-            VehicleTimerManager.startTimer(context, vehicleName, reason, 10, vehicleId)
-            android.widget.Toast.makeText(context, "⏳ Timer extended by 10 minutes for $vehicleName", android.widget.Toast.LENGTH_SHORT).show()
+            // Start new 10-minute timer with accumulated total duration
+            VehicleTimerManager.startTimer(context, vehicleName, reason, 10, vehicleId, startTimeMillis, newAccumulatedMinutes)
+            android.widget.Toast.makeText(context, "⏳ Timer extended by 10 minutes for $vehicleName (Total: $newAccumulatedMinutes Mins)", android.widget.Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -104,11 +112,14 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         val vehicleName = intent.getStringExtra("vehicleName") ?: "Vehicle"
         val reason = intent.getStringExtra("reason") ?: "Maintenance"
         val vehicleId = intent.getStringExtra("vehicleId") ?: ""
-        Log.d(TAG, "==> VehicleAlarmReceiver onReceive FIRED for vehicle: $vehicleName, id: $vehicleId, reason: $reason")
+        val startTimeMillis = intent.getLongExtra("startTimeMillis", System.currentTimeMillis())
+        val accumulatedMinutes = intent.getIntExtra("accumulatedMinutes", 10)
+
+        Log.d(TAG, "==> VehicleAlarmReceiver onReceive FIRED for vehicle: $vehicleName, id: $vehicleId, reason: $reason, totalMins: $accumulatedMinutes")
 
         VehicleTimerService.removeTimer(vehicleName)
 
-        wakeUpAndPlayAlarm(context, vehicleName, reason, vehicleId)
+        wakeUpAndPlayAlarm(context, vehicleName, reason, vehicleId, startTimeMillis, accumulatedMinutes)
     }
 
     @SuppressLint("WakelockTimeout")
@@ -160,7 +171,14 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
     }
 
     @SuppressLint("WakelockTimeout")
-    private fun wakeUpAndPlayAlarm(context: Context, vehicleName: String, reason: String, vehicleId: String = "") {
+    private fun wakeUpAndPlayAlarm(
+        context: Context,
+        vehicleName: String,
+        reason: String,
+        vehicleId: String = "",
+        startTimeMillis: Long = System.currentTimeMillis(),
+        accumulatedMinutes: Int = 10
+    ) {
         try {
             val powerManager = context.getSystemService(Context.POWER_SERVICE) as PowerManager
             @Suppress("DEPRECATION")
@@ -191,6 +209,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
             action = ACTION_MAKE_ACTIVE
             putExtra("vehicleName", vehicleName)
             putExtra("vehicleId", vehicleId)
+            putExtra("startTimeMillis", startTimeMillis)
         }
         val makeActivePendingIntent = PendingIntent.getBroadcast(
             context,
@@ -205,6 +224,8 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
             putExtra("vehicleName", vehicleName)
             putExtra("vehicleId", vehicleId)
             putExtra("reason", reason)
+            putExtra("startTimeMillis", startTimeMillis)
+            putExtra("accumulatedMinutes", accumulatedMinutes)
         }
         val extendPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -219,10 +240,16 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         }
         val stopPendingIntent = PendingIntent.getBroadcast(context, notificationId + 2000, stopIntent, pendingFlags)
 
+        val totalTimeText = if (accumulatedMinutes > 0) {
+            "Time up ($reason)! Total time spent: $accumulatedMinutes Mins. Set to IDLE / ACTIVE now?"
+        } else {
+            "Time up ($reason)! Do you want to set vehicle to IDLE / ACTIVE now?"
+        }
+
         val alarmNotification = NotificationCompat.Builder(context, ALARM_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle("⏰ TIME UP: $vehicleName")
-            .setContentText("Minor maintenance time up ($reason)! Do you want to set vehicle to IDLE / ACTIVE now?")
+            .setContentText(totalTimeText)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
             .setDeleteIntent(stopPendingIntent)
@@ -267,13 +294,13 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         }
     }
 
-    private fun resetVehicleStatusToIdleOnServer(context: Context, vehicleId: String, vehicleName: String) {
+    private fun resetVehicleStatusToIdleOnServer(context: Context, vehicleId: String, vehicleName: String, elapsedMinutes: Int = 0) {
         if (vehicleId.isBlank()) {
             Log.e(TAG, "❌ [STEP 4: ERROR] Cannot reset vehicle status to IDLE: vehicleId is EMPTY!")
             return
         }
 
-        Log.i(TAG, "👉 [STEP 4: START AUTO-RESET] Starting background thread for Vehicle '$vehicleName' (ID: $vehicleId)...")
+        Log.i(TAG, "👉 [STEP 4: START AUTO-RESET] Starting background thread for Vehicle '$vehicleName' (ID: $vehicleId, Total Duration: $elapsedMinutes mins)...")
 
         Thread {
             try {
@@ -391,7 +418,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
 
                 if (postResponseCode == HttpURLConnection.HTTP_OK || postResponseCode == HttpURLConnection.HTTP_MOVED_TEMP || postResponseCode == HttpURLConnection.HTTP_SEE_OTHER) {
                     Log.i(TAG, "🎉 [STEP 4: SUCCESS!] Vehicle $vehicleName (ID: $vehicleId) successfully reset to IDLE on server!")
-                    showAutoResetSuccessNotification(context, vehicleName)
+                    showAutoResetSuccessNotification(context, vehicleName, elapsedMinutes)
                 } else {
                     Log.e(TAG, "❌ [STEP 4: FAILED] Server responded with error status: $postResponseCode")
                 }
@@ -401,7 +428,7 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         }.start()
     }
 
-    private fun showAutoResetSuccessNotification(context: Context, vehicleName: String) {
+    private fun showAutoResetSuccessNotification(context: Context, vehicleName: String, elapsedMinutes: Int = 0) {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -409,10 +436,16 @@ class VehicleAlarmReceiver : BroadcastReceiver() {
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = PendingIntent.getActivity(context, 0, intent, pendingFlags)
 
+        val successText = if (elapsedMinutes > 0) {
+            "Vehicle set to IDLE / ACTIVE status after ${elapsedMinutes} Mins of minor maintenance."
+        } else {
+            "Vehicle set to IDLE / ACTIVE status on Rescue 1122 Portal!"
+        }
+
         val notification = NotificationCompat.Builder(context, ALARM_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("🟢 VEHICLE AUTO-ACTIVATED: $vehicleName")
-            .setContentText("Timer finished (00:00). Vehicle has been automatically reset to IDLE status on Rescue 1122 Portal!")
+            .setContentTitle("🟢 VEHICLE ACTIVATED: $vehicleName")
+            .setContentText(successText)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setDefaults(NotificationCompat.DEFAULT_ALL)

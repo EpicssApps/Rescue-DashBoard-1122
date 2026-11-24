@@ -32,13 +32,26 @@ class VehicleTimerService : Service() {
             activeTimers.remove(vehicleName)
         }
 
-        fun startTimer(context: Context, vehicleName: String, reason: String, minutes: Int, vehicleId: String = "") {
+        fun startTimer(
+            context: Context,
+            vehicleName: String,
+            reason: String,
+            minutes: Int,
+            vehicleId: String = "",
+            startTimeMillis: Long = 0L,
+            accumulatedMinutes: Int = 0
+        ) {
+            val actualStartTime = if (startTimeMillis > 0L) startTimeMillis else System.currentTimeMillis()
+            val actualAccumulatedMins = if (accumulatedMinutes > 0) accumulatedMinutes else minutes
+
             val intent = Intent(context, VehicleTimerService::class.java).apply {
                 action = "START_TIMER"
                 putExtra("vehicleName", vehicleName)
                 putExtra("reason", reason)
                 putExtra("minutes", minutes)
                 putExtra("vehicleId", vehicleId)
+                putExtra("startTimeMillis", actualStartTime)
+                putExtra("accumulatedMinutes", actualAccumulatedMins)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -71,12 +84,21 @@ class VehicleTimerService : Service() {
             val reason = intent.getStringExtra("reason") ?: "Maintenance"
             val minutes = intent.getIntExtra("minutes", 10)
             val vehicleId = intent.getStringExtra("vehicleId") ?: ""
+            val startTimeMillis = intent.getLongExtra("startTimeMillis", System.currentTimeMillis())
+            val accumulatedMinutes = intent.getIntExtra("accumulatedMinutes", minutes)
 
             val notificationId = vehicleName.hashCode()
             val durationMillis = minutes * 60 * 1000L
             val targetTimeWallClock = System.currentTimeMillis() + durationMillis
 
-            val initialNotification = buildNativeChronometerNotification(vehicleName, reason, targetTimeWallClock, vehicleId)
+            val initialNotification = buildNativeChronometerNotification(
+                vehicleName,
+                reason,
+                targetTimeWallClock,
+                vehicleId,
+                startTimeMillis,
+                accumulatedMinutes
+            )
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -88,14 +110,21 @@ class VehicleTimerService : Service() {
                 Log.e(TAG, "startForeground error: ${e.message}")
             }
 
-            startVehicleTimer(vehicleName, reason, minutes, vehicleId)
+            startVehicleTimer(vehicleName, reason, minutes, vehicleId, startTimeMillis, accumulatedMinutes)
         }
 
         return START_STICKY
     }
 
-    private fun startVehicleTimer(vehicleName: String, reason: String, minutes: Int, vehicleId: String = "") {
-        Log.i(TAG, "👉 [STEP 2: SERVICE TIMER STARTED] Vehicle: '$vehicleName', VehicleID: '$vehicleId', Reason: '$reason', Duration: $minutes min(s)")
+    private fun startVehicleTimer(
+        vehicleName: String,
+        reason: String,
+        minutes: Int,
+        vehicleId: String = "",
+        startTimeMillis: Long = System.currentTimeMillis(),
+        accumulatedMinutes: Int = minutes
+    ) {
+        Log.i(TAG, "👉 [STEP 2: SERVICE TIMER STARTED] Vehicle: '$vehicleName', VehicleID: '$vehicleId', Reason: '$reason', Duration: $minutes min(s), TotalAccumulated: $accumulatedMinutes min(s)")
 
         val notificationId = vehicleName.hashCode()
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -106,7 +135,14 @@ class VehicleTimerService : Service() {
         val endRealtime = SystemClock.elapsedRealtime() + durationMillis
 
         // 1. Post native Chronometer Countdown notification (SystemUI ticks natively, NEVER freezes!)
-        val notification = buildNativeChronometerNotification(vehicleName, reason, targetTimeWallClock, vehicleId)
+        val notification = buildNativeChronometerNotification(
+            vehicleName,
+            reason,
+            targetTimeWallClock,
+            vehicleId,
+            startTimeMillis,
+            accumulatedMinutes
+        )
         notificationManager.notify(notificationId, notification)
 
         activeTimers[vehicleName] = endRealtime
@@ -118,6 +154,8 @@ class VehicleTimerService : Service() {
             putExtra("vehicleName", vehicleName)
             putExtra("reason", reason)
             putExtra("vehicleId", vehicleId)
+            putExtra("startTimeMillis", startTimeMillis)
+            putExtra("accumulatedMinutes", accumulatedMinutes)
         }
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val pendingIntent = PendingIntent.getBroadcast(this, notificationId, alarmIntent, pendingFlags)
@@ -167,12 +205,20 @@ class VehicleTimerService : Service() {
         }
     }
 
-    private fun buildNativeChronometerNotification(vehicleName: String, reason: String, targetTimeWallClock: Long, vehicleId: String = ""): Notification {
+    private fun buildNativeChronometerNotification(
+        vehicleName: String,
+        reason: String,
+        targetTimeWallClock: Long,
+        vehicleId: String = "",
+        startTimeMillis: Long = System.currentTimeMillis(),
+        accumulatedMinutes: Int = 0
+    ): Notification {
         val pendingFlags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         val forceMakeActiveIntent = Intent(this, VehicleAlarmReceiver::class.java).apply {
             action = VehicleAlarmReceiver.ACTION_FORCE_MAKE_ACTIVE
             putExtra("vehicleName", vehicleName)
             putExtra("vehicleId", vehicleId)
+            putExtra("startTimeMillis", startTimeMillis)
         }
         val forceMakeActivePendingIntent = PendingIntent.getBroadcast(
             this,
@@ -181,10 +227,12 @@ class VehicleTimerService : Service() {
             pendingFlags
         )
 
+        val totalText = if (accumulatedMinutes > 0) "Total Time Allocated: ${accumulatedMinutes} Mins | Reason: $reason" else "Reason: $reason"
+
         return NotificationCompat.Builder(this, TIMER_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
             .setContentTitle("Minor Maintenance: $vehicleName")
-            .setContentText("Reason: $reason")
+            .setContentText(totalText)
             .setWhen(targetTimeWallClock)
             .setUsesChronometer(true)
             .setChronometerCountDown(true)
