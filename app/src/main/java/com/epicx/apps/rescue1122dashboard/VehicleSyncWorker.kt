@@ -192,10 +192,8 @@ class VehicleSyncWorker(
                 Log.w(TAG, "🚨 [OUT OF SYNC DETECTED] Found ${outOfSyncVehicles.size} Active Out-of-Sync Vehicle(s): $outOfSyncVehicles")
                 triggerAlarm(context, outOfSyncVehicles)
             } else {
-                Log.i(TAG, "✅ [STATUS OK] All active on-duty emergency vehicles are IN SYNC! No action required.")
-                if (isManualSync) {
-                    showAllVehiclesInSyncNotification(context)
-                }
+                Log.i(TAG, "✅ [STATUS OK] All active on-duty emergency vehicles are IN SYNC! Showing heads-up notification.")
+                showAllVehiclesInSyncNotification(context)
             }
 
             Log.i(TAG, "==================================================")
@@ -514,8 +512,15 @@ class VehicleSyncWorker(
             .setDefaults(androidx.core.app.NotificationCompat.DEFAULT_ALL)
             .setVisibility(androidx.core.app.NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
+            .setTimeoutAfter(4000)
             .build()
 
         notificationManager.notify(8888, notification)
+
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            try {
+                notificationManager.cancel(8888)
+            } catch (_: Exception) {}
+        }, 4000)
     }
 }
