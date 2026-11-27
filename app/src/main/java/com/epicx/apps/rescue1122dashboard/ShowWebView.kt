@@ -233,26 +233,22 @@ class ShowWebView : Fragment(R.layout.show_web_view){
             if (url != null) {
                 try {
                     if (url.contains("/login", ignoreCase = true)) {
-                        // Clear saved session cookies & stop background worker when user is on login page
-                        PreferenceManager.getDefaultSharedPreferences(context)
-                            .edit()
-                            .remove("session_cookies")
-                            .apply()
-                        VehicleSyncWorker.cancelPeriodicSync(context)
-                        Log.w("Rescue1122Sync", "⚠️ [LOGIN PAGE] Session cookies cleared & background worker stopped because user is on login page.")
+                        SyncLogger.log(context, "⚠️ [WEBVIEW] User is on login page ($url). Triggering Session Expired Notification.")
+                        VehicleSyncWorker.showSessionExpiredNotification(context)
                     } else {
                         val cookies = android.webkit.CookieManager.getInstance().getCookie(url)
                         if (!cookies.isNullOrEmpty()) {
                             PreferenceManager.getDefaultSharedPreferences(context)
                                 .edit()
                                 .putString("session_cookies", cookies)
+                                .putBoolean("is_session_expired_notified", false)
                                 .apply()
-                            Log.i("Rescue1122Sync", "🔑 [COOKIE CAPTURED] Session cookies saved from URL: $url")
+                            SyncLogger.log(context, "🔑 [WEBVIEW] Captured valid session cookies (${cookies.length} chars) from URL: $url")
                             VehicleSyncWorker.schedulePeriodicSync(context)
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e("Rescue1122Sync", "❌ Error saving cookies or scheduling sync: ${e.message}")
+                    SyncLogger.log(context, "❌ Error saving cookies in WebView: ${e.message}")
                 }
             }
 

@@ -88,6 +88,11 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         createNotificationChannels()
         checkAndRequestPermissions()
+
+        val cookies = PreferenceManager.getDefaultSharedPreferences(this).getString("session_cookies", "") ?: ""
+        if (cookies.isNotEmpty()) {
+            VehicleSyncWorker.schedulePeriodicSync(this)
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -106,21 +111,45 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 showExcludeVehiclesDialog()
                 return true
             }
-           /* R.id.test_sync_alarm -> {
-                val intent = Intent(this, VehicleAlarmReceiver::class.java).apply {
-                    action = VehicleSyncWorker.ACTION_OUT_OF_SYNC_ALARM
-                    putStringArrayListExtra(VehicleSyncWorker.EXTRA_OUT_OF_SYNC_VEHICLES, arrayListOf("TEST-VEHICLE-01"))
-                }
-                sendBroadcast(intent)
-                android.widget.Toast.makeText(this, "Testing Alarm Sound...", android.widget.Toast.LENGTH_SHORT).show()
+            R.id.view_sync_logs -> {
+                showSyncLogsDialog()
                 return true
-            }*/
+            }
             R.id.reset -> {
                 resetUserNamePassword()
                 return true
             }
         }
         return super.onOptionsItemSelected(item)
+    }
+
+    private fun showSyncLogsDialog() {
+        val logs = SyncLogger.getLogs(this)
+        val scrollView = android.widget.ScrollView(this)
+        val textView = android.widget.TextView(this).apply {
+            text = logs
+            setPadding(32, 32, 32, 32)
+            setTextIsSelectable(true)
+            textSize = 12f
+            typeface = android.graphics.Typeface.MONOSPACE
+        }
+        scrollView.addView(textView)
+
+        MaterialAlertDialogBuilder(this, R.style.MaterialAlertDialog)
+            .setTitle("Background Sync Debug Logs")
+            .setView(scrollView)
+            .setPositiveButton("Close") { dialog, _ -> dialog.dismiss() }
+            .setNeutralButton("Clear") { _, _ ->
+                SyncLogger.clearLogs(this)
+                android.widget.Toast.makeText(this, "Sync logs cleared.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Copy") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("SyncLogs", logs)
+                clipboard.setPrimaryClip(clip)
+                android.widget.Toast.makeText(this, "Logs copied to clipboard!", android.widget.Toast.LENGTH_SHORT).show()
+            }
+            .show()
     }
 
     fun showExcludeVehiclesDialog(onSaved: (() -> Unit)? = null) {
