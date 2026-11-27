@@ -175,12 +175,12 @@ class ShowWebView : Fragment(R.layout.show_web_view){
 
             val items = arrayOf(
                 "-- Select Timer Duration --",
-                "1 Minute (Testing)",
+                // "1 Minute (Testing)", // Uncomment this for testing
                 "10 Minutes", "15 Minutes", "20 Minutes", "25 Minutes",
                 "30 Minutes", "35 Minutes", "40 Minutes", "45 Minutes",
                 "50 Minutes", "55 Minutes", "60 Minutes"
             )
-            val timeValues = intArrayOf(0, 1, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
+            val timeValues = intArrayOf(0, /* 1, */ 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60)
 
             val adapter = ArrayAdapter(context, R.layout.dropdown_item, items)
             spinnerTime.setAdapter(adapter)

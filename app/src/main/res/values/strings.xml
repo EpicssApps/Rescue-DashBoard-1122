@@ -155,6 +155,9 @@
     <string name="bna10">BNA-10</string>
     <string name="bna11">BNA-11</string>
     <string name="bna25">BNA 25</string>
+    <string name="check_out_of_sync_vehicles">Check Out of Sync Vehicles</string>
+    <string name="exclude_vehicle_categories">Exclude Vehicle Categories</string>
+    <string name="view_sync_debug_logs">View Sync Debug Logs</string>
 
     <string-array name="locationItems">
         <item>RS-01 Bahawalnagar</item>

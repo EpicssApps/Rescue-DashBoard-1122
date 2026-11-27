@@ -111,10 +111,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                 showExcludeVehiclesDialog()
                 return true
             }
-            R.id.view_sync_logs -> {
+           /* R.id.view_sync_logs -> {
                 showSyncLogsDialog()
                 return true
-            }
+            }*/
             R.id.reset -> {
                 resetUserNamePassword()
                 return true
